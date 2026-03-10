@@ -53,4 +53,11 @@ class Bibit extends Model
     {
         return $this->hasMany(Transaksi::class, 'bibit_id');
     }
+
+    public function petanis()
+    {
+        return $this->belongsToMany(Petani::class, 'bibit_petani')
+                    ->withPivot('kuota_maksimal')
+                    ->withTimestamps();
+    }
 }

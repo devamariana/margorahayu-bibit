@@ -31,4 +31,11 @@ class Petani extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function bibits()
+    {
+        return $this->belongsToMany(Bibit::class, 'bibit_petani')
+                    ->withPivot('kuota_maksimal')
+                    ->withTimestamps();
+    }
 }

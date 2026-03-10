@@ -38,8 +38,8 @@
                 <p class="text-xs text-gray-500">Jatah bibit akan dihitung otomatis sesuai luas lahan yang dipilih.</p>
             </div>
         </div>
-        <div class="w-full md:w-1/3">
-            <select id="pilih-lahan" onchange="resetPilihanBibit()" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] outline-none font-bold text-[#1B4332]">
+        <div class="w-full md:w-1/3 relative">
+            <select id="pilih-lahan" onchange="resetPilihanBibit()" class="appearance-none w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] outline-none font-bold text-[#1B4332] pr-10">
                 <option value="" data-luas="0" data-tambahan="0">-- Pilih Lokasi Lahan --</option>
                 @foreach($lahans as $l)
                     <option value="{{ $l->id }}" data-luas="{{ $l->luas_lahan }}" data-tambahan="{{ $petani->jatah_tambahan ?? 0 }}">
@@ -47,13 +47,16 @@
                     </option>
                 @endforeach
             </select>
+            <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                <i class="fas fa-chevron-down text-[#2D6A4F] text-xs"></i>
+            </div>
         </div>
     </div>
 
     {{-- TAMPILAN PRODUK DARI DATABASE --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         @forelse($semuaBibit as $b)
-        <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }})" 
+        <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->pivot->kuota_maksimal ?? 0 }})" 
              class="bibit-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center hover:border-green-500 hover:shadow-md transition cursor-pointer relative overflow-hidden">
             
             <div class="w-full h-32 border-2 border-gray-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden bg-gray-50">
@@ -75,6 +78,10 @@
                 <span class="inline-block px-4 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">Tersedia: {{ $b->stok }} kg</span>
             @else
                 <span class="inline-block px-4 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200">Stok Habis</span>
+            @endif
+            
+            @if(isset($b->pivot->kuota_maksimal) && $b->pivot->kuota_maksimal > 0)
+                <p class="text-[10px] text-orange-600 mt-3 font-bold uppercase tracking-widest">Maksimal Beli: {{ $b->pivot->kuota_maksimal }} kg</p>
             @endif
         </div>
         @empty
@@ -123,31 +130,11 @@
                     <span id="total-harga" class="text-2xl font-bold text-[#2D6A4F]">Rp 0</span>
                 </div>
 
-                <div class="mt-6">
-                    <p class="font-bold text-gray-700 mb-4">Pilih Metode Pembayaran</p>
-                    <div class="space-y-3">
-                        <label class="flex items-center justify-between p-4 border rounded-xl cursor-pointer hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <input type="radio" name="metode_pembayaran" value="Virtual Account" required class="w-4 h-4 text-[#2D6A4F]">
-                                <span class="text-sm font-medium">Virtual Account (Lebih dari 50 Bank)</span>
-                            </div>
-                            <i class="fas fa-university text-gray-400"></i>
-                        </label>
-                        <label class="flex items-center justify-between p-4 border rounded-xl cursor-pointer hover:bg-gray-50 transition">
-                            <div class="flex items-center gap-3">
-                                <input type="radio" name="metode_pembayaran" value="QRIS" required class="w-4 h-4 text-[#2D6A4F]">
-                                <span class="text-sm font-medium">QRIS (GoPay, OVO, ShopeePay, dll)</span>
-                            </div>
-                            <i class="fas fa-qrcode text-gray-400"></i>
-                        </label>
-                    </div>
-                </div>
-
-                <p class="text-center text-[10px] text-gray-400 mt-6 italic">Pembayaran diamankan otomatis oleh Midtrans</p>
+                <p class="text-center text-[10px] text-gray-400 mt-6 italic">Permintaan pembelian memerlukan persetujuan Admin sebelum lanjut ke pembayaran</p>
 
                 <div class="flex justify-end mt-6">
                     <button type="submit" id="btn-bayar" class="bg-gray-400 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition duration-300 cursor-not-allowed" disabled>
-                        Konfirmasi & Bayar Sekarang
+                        Ajukan Permintaan Pembelian
                     </button>
                 </div>
             </div>
@@ -171,7 +158,7 @@
         document.getElementById('input-bibit-id').value = '';
     }
 
-    function pilihBibit(id, nama, harga) {
+    function pilihBibit(id, nama, harga, kuota = 0) {
         const selectLahan = document.getElementById('pilih-lahan');
         const selectedOption = selectLahan.options[selectLahan.selectedIndex];
         
@@ -183,7 +170,13 @@
         const luasLahan = parseFloat(selectedOption.getAttribute('data-luas'));
         const jatahTambahan = parseFloat(selectedOption.getAttribute('data-tambahan'));
         
-        const estimasiBerat = (luasLahan / 100) * 10 + jatahTambahan;
+        let estimasiBerat = (luasLahan / 100) * 10 + jatahTambahan;
+        
+        if (kuota > 0 && estimasiBerat > kuota) {
+            estimasiBerat = parseFloat(kuota);
+            alert(`Perhatian: Jatah lahan Anda melebihi batas kuota bibit ini. Pesanan disesuaikan ke maksimal: ${kuota} kg.`);
+        }
+
         const total = estimasiBerat * harga;
 
         // Update Input Hidden untuk Form
@@ -214,25 +207,20 @@
     function checkButtonState() {
         const jumlah = parseFloat(document.getElementById('input-jumlah-beli').value) || 0;
         const btnBayar = document.getElementById('btn-bayar');
-        const isMetodeSelected = document.querySelector('input[name="metode_pembayaran"]:checked') !== null;
         const isLahanSelected = document.getElementById('pilih-lahan').value !== "";
 
-        if (jumlah > 0 && isLahanSelected && isMetodeSelected) {
+        if (jumlah > 0 && isLahanSelected) {
             btnBayar.disabled = false;
             btnBayar.classList.remove('bg-gray-400', 'cursor-not-allowed');
-            btnBayar.classList.add('bg-[#1B4332]', 'hover:bg-[#0a2318]');
+            btnBayar.classList.add('bg-[#D97706]', 'hover:bg-[#B45309]');
         } else {
             btnBayar.disabled = true;
             btnBayar.classList.add('bg-gray-400', 'cursor-not-allowed');
-            btnBayar.classList.remove('bg-[#1B4332]', 'hover:bg-[#0a2318]');
+            btnBayar.classList.remove('bg-[#D97706]', 'hover:bg-[#B45309]');
         }
     }
 
-    // Add event listeners for payment method radio buttons
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('input[name="metode_pembayaran"]').forEach(radio => {
-            radio.addEventListener('change', checkButtonState);
-        });
         checkButtonState(); 
     });
 </script>

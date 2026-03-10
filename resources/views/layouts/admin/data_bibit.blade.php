@@ -62,6 +62,7 @@
                         <td class="p-4 font-bold text-gray-800">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}</td>
                         <td class="p-4">
                             <div class="flex justify-center gap-2">
+
                                 {{-- Tombol Edit dengan Data Attributes --}}
                                 <button title="Edit" 
                                     onclick="openModal('edit', {{ json_encode($b) }})"
@@ -92,7 +93,7 @@
 
 {{-- MODAL FORM (BISA UNTUK TAMBAH & EDIT) --}}
 <div id="modalBibit" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-bold text-gray-800" id="modalTitle">Tambah Bibit Baru</h3>
             <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
@@ -132,6 +133,8 @@
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Foto Bibit (Kosongkan jika tidak ganti)</label>
                 <input type="file" name="gambar" class="w-full text-xs text-gray-500">
             </div>
+
+
             <div class="flex justify-end gap-2 pt-4">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 transition">Batal</button>
                 <button type="submit" class="px-8 py-2 bg-[#2D6A4F] text-white rounded-lg text-sm font-bold shadow-md hover:bg-[#1B4332] transition">
@@ -141,6 +144,7 @@
         </form>
     </div>
 </div>
+
 
 <script>
     // FUNGSI MODAL DINAMIS (TAMBAH & EDIT)
@@ -193,6 +197,34 @@
             let name = row.querySelector(".bibit-name").innerText.toLowerCase();
             row.style.display = name.includes(input) ? "" : "none";
         });
+    }
+
+    // FUNGSI FILTER PETANI DI MODAL
+    function filterPetani() {
+        let input = document.getElementById("searchPetani").value.toLowerCase();
+        let items = document.querySelectorAll(".petani-item");
+
+        items.forEach(item => {
+            let name = item.querySelector(".petani-name").innerText.toLowerCase();
+            item.style.display = name.includes(input) ? "flex" : "none";
+        });
+    }
+
+    // FUNGSI MUNCULKAN INPUT KUOTA SAAT CHECKBOX DICENTANG
+    function toggleKuota(id) {
+        let checkbox = document.querySelector(`input[value="${id}"].petani-checkbox`);
+        let inputKuota = document.getElementById(`kuota_${id}`);
+        // Jika dipanggil tanpa event tapi elemen checkbox ada
+        if(checkbox) {
+            if(checkbox.checked) {
+                inputKuota.classList.remove('hidden');
+                inputKuota.required = true;
+            } else {
+                inputKuota.classList.add('hidden');
+                inputKuota.required = false;
+                inputKuota.value = '';
+            }
+        }
     }
 
     // FUNGSI FORMAT NOMINAL & VALIDASI ANGKA

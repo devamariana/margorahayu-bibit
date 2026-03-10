@@ -54,15 +54,25 @@
                         <td class="p-4 text-center">
                             @if($r->status_pembayaran == 'sukses' || $r->status_pembayaran == 'lunas')
                                 <span class="px-3 py-1 bg-green-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">Lunas</span>
-                            @elseif($r->status_pembayaran == 'pending')
-                                <span class="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">Menunggu</span>
+                            @elseif($r->status_pembayaran == 'menunggu_persetujuan')
+                                <span class="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">Menunggu Persetujuan</span>
+                            @elseif($r->status_pembayaran == 'menunggu_pembayaran' || $r->status_pembayaran == 'pending')
+                                <span class="px-3 py-1 bg-blue-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">Belum Bayar</span>
+                            @elseif($r->status_pembayaran == 'kadaluarsa')
+                                <span class="px-3 py-1 bg-gray-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">Kadaluarsa</span>
                             @else
-                                <span class="px-3 py-1 bg-red-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">Batal</span>
+                                <span class="px-3 py-1 bg-red-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">Ditolak/Batal</span>
                             @endif
                         </td>
                         <td class="p-4 text-center text-xs">
-                            @if($r->status_pembayaran == 'pending')
-                                <a href="{{ route('petani.bayar_bibit', $r->id) }}" class="inline-block px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-sm transition">Bayar</a>
+                            @if($r->status_pembayaran == 'menunggu_pembayaran' || $r->status_pembayaran == 'pending')
+                                <a href="{{ route('petani.bayar_bibit', $r->id) }}" class="inline-block px-4 py-2 bg-[#D97706] hover:bg-[#B45309] text-white font-bold rounded-lg shadow-sm transition">Bayar Sekarang</a>
+                            @elseif($r->status_pembayaran == 'menunggu_persetujuan')
+                                <form action="{{ route('petani.batal_bayar', $r->id) }}" method="POST" onsubmit="return confirm('Yakin ingin membatalkan permintaan pesanan ini?');" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-sm transition">Batalkan</button>
+                                </form>
                             @else
                                 <span class="text-gray-400 italic">Selesai</span>
                             @endif
@@ -70,7 +80,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-gray-400 italic text-sm">
+                        <td colspan="7" class="p-8 text-center text-gray-400 italic text-sm">
                             Belum ada riwayat pembelian. Silakan pilih bibit di menu Beli Bibit.
                         </td>
                     </tr>

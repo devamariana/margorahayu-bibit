@@ -7,11 +7,13 @@ use Illuminate\Http\Request;
 use App\Models\Bibit;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use App\Models\Petani;
+use App\Notifications\SistemNotifikasi;
 
 class BibitController extends Controller
 {
     public function index() {
-        $bibits = Bibit::all(); 
+        $bibits = Bibit::all();
         return view('layouts.admin.data_bibit', compact('bibits'));
     }
 
@@ -46,7 +48,20 @@ class BibitController extends Controller
 
         $data['status'] = $request->stok > 0 ? 'tersedia' : 'habis';
 
-        Bibit::create($data);
+        $bibit = Bibit::create($data);
+
+        // Notify all verified Petani about the new Bibit
+        $petanis = Petani::with('user')->where('status', 'disetujui')->get();
+        foreach ($petanis as $petani) {
+            if ($petani->user) {
+                $petani->user->notify(new SistemNotifikasi(
+                    'Bibit Baru Tersedia! 🌱', 
+                    "Kabar gembira! Bibit jenis " . ($request->jenis ?? '') . " " . $request->nama_bibit . " sekarang sudah tersedia dengan harga subsidi Rp" . number_format($request->harga_subsidi, 0, ',', '.') . ".", 
+                    'bibit',
+                    url('/beli-bibit')
+                ));
+            }
+        }
 
         return redirect()->route('admin.data_bibit')
             ->with('success', 'Master Data Masuk Berhasil Dicatat!')

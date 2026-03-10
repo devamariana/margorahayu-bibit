@@ -45,9 +45,6 @@ class PetaniController extends Controller
         return view('petani.dashboard', compact('bibitTerbaru', 'petani', 'jatahBibit', 'riwayat', 'totalLuas'));
     }
 
-    /**
-     * Menampilkan halaman khusus pengelolaan banyak lahan (Revisi)
-     */
     public function lahan()
     {
         $petani = Petani::where('user_id', Auth::id())->first();
@@ -55,8 +52,14 @@ class PetaniController extends Controller
         $lahans = Lahan::where('petani_id', $petani->id)->get();
         $totalLuas = $lahans->sum('luas_lahan');
         $jumlahLahan = $lahans->count();
+        // Ambil dari seluruh data master bibit karena akses sudah dibebaskan (dengan jenis untuk pengelompokan)
+        $rencanaBibits = \App\Models\Bibit::select('nama_bibit', 'jenis')
+                            ->distinct()
+                            ->orderBy('jenis')
+                            ->orderBy('nama_bibit')
+                            ->get();
 
-        return view('petani.lahan', compact('petani', 'lahans', 'totalLuas', 'jumlahLahan'));
+        return view('petani.lahan', compact('petani', 'lahans', 'totalLuas', 'jumlahLahan', 'rencanaBibits'));
     }
 
     /**
@@ -72,7 +75,7 @@ class PetaniController extends Controller
 
         $petani = Petani::where('user_id', Auth::id())->first();
 
-        Lahan::create([
+        $lahan = Lahan::create([
             'petani_id' => $petani->id,
             'nama_blok' => $request->nama_blok,
             'luas_lahan' => $request->luas_lahan,
@@ -80,7 +83,19 @@ class PetaniController extends Controller
             'jenis_tanah' => $request->jenis_tanah ?? '-',
         ]);
 
-        return back()->with('success', 'Lahan baru berhasil ditambahkan!');
+        // Beritahu admin
+        $admins = \App\Models\User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            $admin->notify(new \App\Notifications\SistemNotifikasi(
+                'Permintaan Data Lahan Baru', 
+                "Petani {$petani->nama_lengkap} telah menambahkan lahan di {$lahan->nama_blok}. Mohon segera diverifikasi supaya mereka bisa belanja bibit.", 
+                'info',
+                url('/admin/data-lahan'),
+                $lahan->id
+            ));
+        }
+
+        return back()->with('success', 'Lahan baru berhasil ditambahkan dan menunggu verifikasi admin!');
     }
 
     /**
@@ -126,7 +141,6 @@ class PetaniController extends Controller
             'bibit_id' => 'required|exists:bibits,id',
             'jumlah_beli' => 'required|numeric|min:1',
             'total_harga' => 'required|numeric',
-            'metode_pembayaran' => 'required|string',
         ]);
 
         $petani = Petani::where('user_id', Auth::id())->first();
@@ -155,7 +169,7 @@ class PetaniController extends Controller
         // Buat ID Transaksi Khusus
         $order_id = 'TRX-' . time() . '-' . $petani->id;
 
-        // Buat Transaksi (Status Pending)
+        // Buat Transaksi (Status Menunggu Persetujuan Admin)
         $transaksi = Transaksi::create([
             'petani_id' => $petani->id,
             'lahan_id' => $lahan->id,
@@ -163,77 +177,89 @@ class PetaniController extends Controller
             'order_id' => $order_id,
             'jumlah_beli' => $request->jumlah_beli,
             'total_harga' => $request->total_harga,
-            'metode_pembayaran' => $request->metode_pembayaran . ' (Midtrans)',
-            'status_pembayaran' => 'pending' // Menunggu pembayaran
+            'metode_pembayaran' => '-', // Belum pilih metode
+            'status_pembayaran' => 'menunggu_persetujuan'
         ]);
 
-        // =====================================
-        // KONFIGURASI MIDTRANS
-        // =====================================
-        \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
-        \Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false); 
-        \Midtrans\Config::$isSanitized = true;
-        \Midtrans\Config::$is3ds = true;
-
-        $params = [
-            'transaction_details' => [
-                'order_id' => $order_id,
-                'gross_amount' => $request->total_harga,
-            ],
-            'customer_details' => [
-                'first_name' => collect(explode(' ', $petani->nama_lengkap))->first(),
-                'last_name' => collect(explode(' ', $petani->nama_lengkap))->slice(1)->implode(' '),
-                'phone' => str_replace('+', '', $petani->no_hp),
-            ],
-            'item_details' => [
-                [
-                    'id' => $bibit->id,
-                    'price' => $bibit->harga_subsidi,
-                    'quantity' => $request->jumlah_beli,
-                    'name' => $bibit->nama_bibit
-                ]
-            ]
-        ];
-
-        // Filter Metode Pembayaran
-        if ($request->metode_pembayaran == 'Virtual Account') {
-            $params['enabled_payments'] = [
-                'bca_va', 'bni_va', 'bri_va', 'echannel', 'permata_va', 'other_va'
-            ];
-        } elseif ($request->metode_pembayaran == 'QRIS') {
-            $params['enabled_payments'] = [
-                'qris', 'gopay', 'shopeepay'
-            ];
+        // Notif Admin Ada Permintaan Beli
+        $admins = \App\Models\User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            $admin->notify(new \App\Notifications\SistemNotifikasi(
+                'Permintaan Pembelian Bibit', 
+                "Petani {$petani->nama_lengkap} meminta {$request->jumlah_beli} qty bibit '{$bibit->nama_bibit}'. Mohon dicek.", 
+                'bibit',
+                url('/admin/riwayat-transaksi'),
+                $transaksi->id
+            ));
         }
 
-        try {
-            $snapToken = \Midtrans\Snap::getSnapToken($params);
-            $transaksi->snap_token = $snapToken;
-            $transaksi->save();
-
-            return redirect()->route('petani.bayar_bibit', $transaksi->id);
-
-        } catch (\Exception $e) {
-            // Jika gagal buat tiket midtrans, kembalikan stok
-            $bibit->stok += $request->jumlah_beli;
-            $bibit->save();
-            $transaksi->delete();
-
-            return back()->with('error', 'Gagal memanggil Gateway Pembayaran: ' . $e->getMessage());
-        }
+        return redirect()->route('petani.riwayat')->with('success', 'Permintaan pembelian bibit berhasil dikirim. Silakan tunggu persetujuan dari Admin sebelum melakukan pembayaran.');
     }
 
     /**
-     * Halaman Pembayaran Midtrans Eksekusi
+     * Munculkan Midtrans Snap sesudah Admin acc dan Petani pilih bayar
      */
     public function bayarBibit($id)
     {
         $petani = Petani::where('user_id', Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
+        // Cek tenggat waktu 1 minggu dari tanggal persetujuan (updated_at)
+        if ($transaksi->status_pembayaran == 'menunggu_pembayaran') {
+            $tenggat = $transaksi->updated_at->addDays(7);
+            if (now()->greaterThan($tenggat)) {
+                $transaksi->status_pembayaran = 'kadaluarsa';
+                $transaksi->save();
+
+                // Kembalikan Stok
+                $bibit = $transaksi->bibit;
+                $bibit->stok += $transaksi->jumlah_beli;
+                $bibit->save();
+
+                return redirect()->route('petani.riwayat')->with('error', 'Pesanan ini sudah kadaluarsa (lebih dari 1 minggu belum dibayar). Stok bibit telah dikembalikan.');
+            }
+        }
+
         // Jika sudah sukses, arahkan ke riwayat
         if ($transaksi->status_pembayaran == 'sukses') {
             return redirect()->route('petani.riwayat')->with('success', 'Transaksi ini sudah selesai.');
+        }
+
+        // Generate Snap Token jika belum ada dan status menunggu pembayaran
+        if (empty($transaksi->snap_token) && $transaksi->status_pembayaran == 'menunggu_pembayaran') {
+            \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
+            \Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false); 
+            \Midtrans\Config::$isSanitized = true;
+            \Midtrans\Config::$is3ds = true;
+
+            $params = [
+                'transaction_details' => [
+                    'order_id' => $transaksi->order_id,
+                    'gross_amount' => $transaksi->total_harga,
+                ],
+                'customer_details' => [
+                    'first_name' => collect(explode(' ', $petani->nama_lengkap))->first(),
+                    'last_name' => collect(explode(' ', $petani->nama_lengkap))->slice(1)->implode(' '),
+                    'phone' => str_replace('+', '', $petani->no_hp),
+                    'email' => 'petani_' . $petani->id . '@example.com', // Added to prevent Midtrans reject anomalies
+                ],
+                'item_details' => [
+                    [
+                        'id' => $transaksi->bibit->id,
+                        'price' => $transaksi->bibit->harga_subsidi,
+                        'quantity' => $transaksi->jumlah_beli,
+                        'name' => $transaksi->bibit->nama_bibit
+                    ]
+                ]
+            ];
+
+            try {
+                $snapToken = \Midtrans\Snap::getSnapToken($params);
+                $transaksi->snap_token = $snapToken;
+                $transaksi->save();
+            } catch (\Exception $e) {
+                return back()->with('error', 'Gagal memanggil Gateway Pembayaran: ' . $e->getMessage());
+            }
         }
 
         return view('petani.bayar_bibit', compact('transaksi', 'petani'));
@@ -247,8 +273,8 @@ class PetaniController extends Controller
         $petani = Petani::where('user_id', Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
-        // Hanya bisa dibatalkan jika statusnya masih pending
-        if ($transaksi->status_pembayaran == 'pending') {
+        // Hanya bisa dibatalkan jika statusnya belum dibayar/selesai
+        if (in_array($transaksi->status_pembayaran, ['pending', 'menunggu_persetujuan', 'menunggu_pembayaran'])) {
             // Kembalikan stok bibit
             $bibit = $transaksi->bibit;
             $bibit->stok += $transaksi->jumlah_beli;
@@ -272,9 +298,22 @@ class PetaniController extends Controller
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
         // Di sini skenarionya sederhana: user klik 'close' dari snap lalu kita asumsikan sukses (Bisa diganti Webhook ke depannya)
-        if ($transaksi->status_pembayaran == 'pending') {
+        if ($transaksi->status_pembayaran == 'menunggu_pembayaran' || $transaksi->status_pembayaran == 'pending') {
             $transaksi->status_pembayaran = 'sukses';
             $transaksi->save();
+
+            // Beritahu Admin bahwa pembayaran telah lunas
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            $bibitNama = $transaksi->bibit->nama_bibit ?? 'Bibit';
+            foreach ($admins as $admin) {
+                $admin->notify(new \App\Notifications\SistemNotifikasi(
+                    'Pembayaran Lunas! ✅', 
+                    "Petani {$petani->nama_lengkap} telah melunasi pembayaran untuk bibit '{$bibitNama}' sebesar Rp " . number_format($transaksi->total_harga, 0, ',', '.') . ".", 
+                    'success',
+                    url('/admin/riwayat-transaksi'),
+                    $transaksi->id
+                ));
+            }
         }
 
         return redirect()->route('petani.riwayat')->with('success', 'Pembelian bibit berhasil! Silahkan tunggu pengiriman.');
@@ -295,6 +334,15 @@ class PetaniController extends Controller
                     ->get();
 
         return view('petani.riwayat', compact('riwayat'));
+    }
+
+    /**
+     * Tandai Semua Notifikasi Sudah Dibaca
+     */
+    public function bacaSemuaNotifikasi()
+    {
+        Auth::user()->unreadNotifications->markAsRead();
+        return back();
     }
 
     /**
@@ -341,6 +389,35 @@ class PetaniController extends Controller
 
         $petani->save();
 
+        // Notifikasi ke Admin bahwa ada Profil Petani yang butuh divalidasi
+        $admins = \App\Models\User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            $admin->notify(new \App\Notifications\SistemNotifikasi(
+                'Pembaruan Profil Petani', 
+                "Petani atas nama {$petani->nama_lengkap} telah melengkapi data profil dan berkas identitasnya. Mohon segera cek dan validasi kebenarannya.", 
+                'info',
+                url('/admin/data-petani'),
+                $user->id
+            ));
+        }
+
         return redirect()->route('petani.profil')->with('success', 'Profil diperbarui!');
+    }
+
+    /**
+     * Tandai Satu Notifikasi Dibaca dan Redirect
+     */
+    public function bacaDanArahkan($id)
+    {
+        $notification = Auth::user()->notifications()->findOrFail($id);
+        $notification->markAsRead();
+
+        $url = $notification->data['url'] ?? null;
+
+        if ($url) {
+            return redirect($url);
+        }
+
+        return back();
     }
 }

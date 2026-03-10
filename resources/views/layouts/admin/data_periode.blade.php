@@ -97,10 +97,15 @@
                 </div>
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Status Keaktifan</label>
-                    <select name="status" class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm font-bold">
-                        <option value="aktif">Aktif Sedang Berjalan</option>
-                        <option value="berakhir">Berakhir (Ditutup)</option>
-                    </select>
+                    <div class="relative">
+                        <select name="status" class="appearance-none block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm font-bold pr-10">
+                            <option value="aktif">Aktif Sedang Berjalan</option>
+                            <option value="berakhir">Berakhir (Ditutup)</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                            <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="pt-6 flex justify-end gap-4 items-center">

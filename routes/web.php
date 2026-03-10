@@ -67,6 +67,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/admin/data-lahan', [AdminController::class, 'dataLahan'])->name('admin.data_lahan');
         Route::post('/admin/verifikasi-lahan/{id}', [AdminController::class, 'verifikasiLahan'])->name('admin.verifikasi_lahan');
         Route::get('/admin/riwayat-transaksi', [AdminController::class, 'riwayatTransaksi'])->name('admin.riwayat_transaksi');
+        Route::post('/admin/verifikasi-transaksi/{id}', [AdminController::class, 'verifikasiTransaksi'])->name('admin.verifikasi_transaksi');
+        Route::get('/admin/notifikasi/baca-semua', [AdminController::class, 'bacaSemuaNotifikasi']);
     });
 
     // 2. KHUSUS ROLE: PETANI
@@ -89,5 +91,11 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/beli-bibit/batal/{id}', [PetaniController::class, 'batalBayar'])->name('petani.batal_bayar');
         Route::get('/beli-bibit/sukses-bayar/{id}', [PetaniController::class, 'suksesBayarBibit'])->name('petani.sukses_bayar');
         Route::get('/riwayat-pembelian', [PetaniController::class, 'riwayat'])->name('petani.riwayat');
+        
+        // Notifikasi
+        Route::get('/petani/notifikasi/baca-semua', [PetaniController::class, 'bacaSemuaNotifikasi']);
     });
+
+    // Route Umum (Bisa diakses Admin & Petani)
+    Route::get('/notifikasi/baca/{id}', [PetaniController::class, 'bacaDanArahkan'])->name('notifikasi.baca');
 });

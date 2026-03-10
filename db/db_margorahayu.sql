@@ -1,14 +1,13 @@
 -- phpMyAdmin SQL Dump
--- version 4.9.0.1
+-- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: sql105.infinityfree.com
--- Generation Time: Mar 10, 2026 at 01:35 AM
--- Server version: 11.4.10-MariaDB
--- PHP Version: 7.2.22
+-- Host: 127.0.0.1
+-- Generation Time: Mar 10, 2026 at 02:29 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
@@ -19,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `if0_41338821_db_margorahayu`
+-- Database: `db_margorahayu`
 --
 
 -- --------------------------------------------------------
@@ -47,7 +46,22 @@ CREATE TABLE `bibits` (
 --
 
 INSERT INTO `bibits` (`id`, `nama_bibit`, `jenis`, `stok`, `deskripsi`, `created_at`, `updated_at`, `harga_subsidi`, `sumber_pasokan`, `gambar`, `status`) VALUES
-(1, 'Bibit Konsentrat', 'Bibit Unggul', 9999690, 'Hei Antek Antek Asing', '2026-03-08 11:00:59', '2026-03-09 23:39:34', 250000, 'PT. Makmur Sejahtera Abadi', 'bibit_1772993753.jpg', 'tersedia');
+(3, 'Bibit Padi Unggul', 'Unggul 1', 249870, NULL, '2026-03-10 00:09:26', '2026-03-10 06:21:22', 60000, 'PT. Kucinta Bibit', 'bibit_1773126566.png', 'tersedia');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `bibit_petani`
+--
+
+CREATE TABLE `bibit_petani` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `bibit_id` bigint(20) UNSIGNED NOT NULL,
+  `petani_id` bigint(20) UNSIGNED NOT NULL,
+  `kuota_maksimal` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -148,9 +162,7 @@ CREATE TABLE `lahans` (
 --
 
 INSERT INTO `lahans` (`id`, `petani_id`, `nama_blok`, `luas_lahan`, `rencana_bibit`, `jenis_tanah`, `lokasi`, `created_at`, `updated_at`, `status`) VALUES
-(8, 8, 'Sawah Sawit', 500, 'Padi', '-', NULL, '2026-03-09 09:51:47', '2026-03-09 09:52:11', 'disetujui'),
-(10, 9, 'sawah blok utara', 500, 'Jagung', '-', NULL, '2026-03-09 23:28:20', '2026-03-09 23:31:09', 'disetujui'),
-(11, 9, 'sawah blok barat', 500, 'Kedelai', '-', NULL, '2026-03-09 23:35:26', '2026-03-09 23:36:16', 'disetujui');
+(14, 11, 'Sawah Blok Barat', 400, 'Bibit Padi Unggul', '-', NULL, '2026-03-10 05:36:56', '2026-03-10 05:50:44', 'disetujui');
 
 -- --------------------------------------------------------
 
@@ -181,7 +193,39 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (10, '2026_03_08_175240_create_periodes_table', 6),
 (11, '2026_03_08_175954_add_columns_to_bibits_table', 7),
 (12, '2026_03_08_181829_add_midtrans_columns_to_transaksis_table', 8),
-(13, '2026_03_09_003933_add_status_to_lahans_table', 9);
+(13, '2026_03_09_003933_add_status_to_lahans_table', 9),
+(14, '2026_03_10_063902_create_bibit_petani_table', 10),
+(15, '2026_03_10_120843_create_notifications_table', 11);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` char(36) NOT NULL,
+  `type` varchar(255) NOT NULL,
+  `notifiable_type` varchar(255) NOT NULL,
+  `notifiable_id` bigint(20) UNSIGNED NOT NULL,
+  `data` text NOT NULL,
+  `read_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`id`, `type`, `notifiable_type`, `notifiable_id`, `data`, `read_at`, `created_at`, `updated_at`) VALUES
+('5fa549c7-7d1a-461c-948f-a357a0a72837', 'App\\Notifications\\SistemNotifikasi', 'App\\Models\\User', 10, '{\"judul\":\"Pembayaran Lunas! \\u2705\",\"pesan\":\"Petani mariadi telah melunasi pembayaran untuk bibit \'Bibit Padi Unggul\' sebesar Rp 2.400.000.\",\"tipe\":\"success\",\"url\":\"http:\\/\\/127.0.0.1:8000\\/admin\\/riwayat-transaksi\",\"id_terkait\":18}', '2026-03-10 06:27:55', '2026-03-10 06:27:50', '2026-03-10 06:27:55'),
+('63e84719-b53f-479b-b879-786852dd9e67', 'App\\Notifications\\SistemNotifikasi', 'App\\Models\\User', 14, '{\"judul\":\"Pesan Pembelian Bibit\",\"pesan\":\"Permintaan Anda untuk Bibit Padi Unggul telah disetujui! Segera lakukan pembayaran sebelum 7 hari dari sekarang.\",\"tipe\":\"info\",\"url\":\"http:\\/\\/127.0.0.1:8000\\/riwayat-pembelian\"}', '2026-03-10 06:16:00', '2026-03-10 05:56:49', '2026-03-10 06:16:00'),
+('955e26f9-da32-479c-9135-4ce169042093', 'App\\Notifications\\SistemNotifikasi', 'App\\Models\\User', 14, '{\"judul\":\"Akun Diverifikasi\",\"pesan\":\"Selamat! Akun Anda telah berhasil diverifikasi oleh Admin. Silakan lengkapi profil Anda.\",\"tipe\":\"success\"}', '2026-03-10 05:45:01', '2026-03-10 05:38:31', '2026-03-10 05:45:01'),
+('c3592821-a757-4c21-a1b2-1bf3b435b271', 'App\\Notifications\\SistemNotifikasi', 'App\\Models\\User', 10, '{\"judul\":\"Permintaan Pembelian Bibit\",\"pesan\":\"Petani mariadi meminta 40 qty bibit \'Bibit Padi Unggul\'. Mohon dicek.\",\"tipe\":\"bibit\",\"url\":\"http:\\/\\/127.0.0.1:8000\\/admin\\/riwayat-transaksi\",\"id_terkait\":18}', '2026-03-10 06:25:50', '2026-03-10 06:21:22', '2026-03-10 06:25:50'),
+('c844f461-a010-48f3-b4df-2cf0ef675e09', 'App\\Notifications\\SistemNotifikasi', 'App\\Models\\User', 14, '{\"judul\":\"Status Data Lahan\",\"pesan\":\"Data Lahan Anda berlokasi di  telah disetujui.\",\"tipe\":\"success\",\"url\":\"http:\\/\\/127.0.0.1:8000\\/petani\\/lahan\"}', '2026-03-10 05:56:04', '2026-03-10 05:50:44', '2026-03-10 05:56:04'),
+('dd0e30b4-7210-4b9d-846d-b283f093219d', 'App\\Notifications\\SistemNotifikasi', 'App\\Models\\User', 10, '{\"judul\":\"Permintaan Pembelian Bibit\",\"pesan\":\"Petani mariadi meminta 40 qty bibit \'Bibit Padi Unggul\'. Mohon dicek.\",\"tipe\":\"bibit\",\"url\":\"http:\\/\\/127.0.0.1:8000\\/admin\\/riwayat-transaksi\"}', '2026-03-10 05:57:00', '2026-03-10 05:56:40', '2026-03-10 05:57:00'),
+('f15c3934-d054-4aee-bc8e-37069482ee6c', 'App\\Notifications\\SistemNotifikasi', 'App\\Models\\User', 10, '{\"judul\":\"Permintaan Data Lahan Baru\",\"pesan\":\"Petani mariadi telah menambahkan lahan di Sawah Blok Barat. Mohon segera diverifikasi supaya mereka bisa belanja bibit.\",\"tipe\":\"info\"}', '2026-03-10 05:38:49', '2026-03-10 05:36:56', '2026-03-10 05:38:49');
 
 -- --------------------------------------------------------
 
@@ -237,8 +281,7 @@ CREATE TABLE `petanis` (
 --
 
 INSERT INTO `petanis` (`id`, `user_id`, `nama_lengkap`, `no_hp`, `nik`, `alamat`, `luas_lahan`, `status`, `foto_ktp`, `foto_kk`, `created_at`, `updated_at`) VALUES
-(8, 11, 'maria', '85111235313', '-', '-', '0.00', 'disetujui', '', '', '2026-03-09 09:50:39', '2026-03-09 09:51:17'),
-(9, 12, 'devamariana', '82228154201', '3567687876756', 'Dusun Kademangan RT 001 RW 001 Desa Bendoagung Kecamatan Kampak Kabupaten Trenggalek', '0.00', 'disetujui', 'KTP_1773073641.png', 'KK_1773073641.png', '2026-03-09 23:26:24', '2026-03-09 23:29:07');
+(11, 14, 'mariadi', '895413793451', '36342763726836283', 'Ds. Mojolangu, Kec. Plesetan, Kab. Nglawak, Jawa Timur', 0.00, 'disetujui', 'KTP_1773145370.png', 'KK_1773145370.png', '2026-03-10 05:15:53', '2026-03-10 05:37:05');
 
 -- --------------------------------------------------------
 
@@ -276,7 +319,8 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('ejywDuwXQieyajXpVXKpXmAoH0aVX2yfbgwGHgkX', 12, '114.10.47.189', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoicFFvNEg1elRnSlBQZndUenBHUUo1OUg0cG9ZSjNPRW5ZUUVqblBUaCI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6Mzg6Imh0dHBzOi8vbWFyZ29yYWhheXUucGFnZS5nZC9iZWxpLWJpYml0IjtzOjU6InJvdXRlIjtzOjE3OiJwZXRhbmkuYmVsaV9iaWJpdCI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtpOjEyO30=', 1773108609);
+('diSz7ZQaW47QehvPDaJlBpjXLZt9ZBg2vYSBheAv', 14, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoiTFQ1Y0hVeG83YWhVU3hxOWd6U3hUcHpuRFUwMVMyNVdJUFZxMjR3YyI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJuZXciO2E6MDp7fXM6Mzoib2xkIjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6Mzk6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9yaXdheWF0LXBlbWJlbGlhbiI7czo1OiJyb3V0ZSI7czoxNDoicGV0YW5pLnJpd2F5YXQiO31zOjEzOiJyZWdpc3Rlcl90aW1lIjtpOjE3NzMxNDQ5NDE7czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO2k6MTQ7fQ==', 1773149270),
+('uItNwpimwmTeXV6VbBIFQufVkqNGZboZMyGfp5Oa', 10, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoiV0E0UmhYcldMaTZocEpNNEEzYWJzZ293b1hOUHl2TmRKMUhFQWNMbiI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NDU6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9hZG1pbi9yaXdheWF0LXRyYW5zYWtzaSI7czo1OiJyb3V0ZSI7czoyMzoiYWRtaW4ucml3YXlhdF90cmFuc2Frc2kiO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7aToxMDt9', 1773149279);
 
 -- --------------------------------------------------------
 
@@ -304,8 +348,8 @@ CREATE TABLE `transaksis` (
 --
 
 INSERT INTO `transaksis` (`id`, `order_id`, `petani_id`, `lahan_id`, `bibit_id`, `jumlah_beli`, `total_harga`, `metode_pembayaran`, `status_pembayaran`, `snap_token`, `created_at`, `updated_at`) VALUES
-(10, 'TRX-1773074024-9', 9, 10, 1, 50, 12500000, 'Virtual Account (Midtrans)', 'sukses', 'f38e674b-0b93-4612-87aa-899f00e87e0b', '2026-03-09 23:33:44', '2026-03-09 23:34:52'),
-(11, 'TRX-1773074374-9', 9, 11, 1, 50, 12500000, 'Virtual Account (Midtrans)', 'sukses', 'c63cb667-6a6d-43e4-880b-c300f6732c9b', '2026-03-09 23:39:34', '2026-03-09 23:42:57');
+(17, 'TRX-1773147400-11', 11, 14, 3, 40, 2400000, '-', 'sukses', '50e21bb4-087a-4f68-8123-78d12fd46fab', '2026-03-10 05:56:40', '2026-03-10 06:16:34'),
+(18, 'TRX-1773148882-11', 11, 14, 3, 40, 2400000, '-', 'sukses', '22b9fb98-016e-4ef2-9ccd-357229b547f6', '2026-03-10 06:21:22', '2026-03-10 06:27:50');
 
 -- --------------------------------------------------------
 
@@ -330,8 +374,7 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `username`, `password`, `role`, `remember_token`, `created_at`, `updated_at`) VALUES
 (6, 'superadmin', '$2y$12$IwV0VQchAFdWDbP.qAw0K.VvJCHCQCffO0RoA/aFVBN.9qIbyKz16', 'superadmin', NULL, '2026-03-08 10:14:58', '2026-03-08 10:14:58'),
 (10, 'admin1', '$2y$12$LMf8IRNYnymd4NkKHERpQemiePr8XaDxHjJiryvIFQA3HL/Bj5N7q', 'admin', NULL, '2026-03-09 09:48:18', '2026-03-09 09:48:18'),
-(11, 'maria', '$2y$12$YSfPZRjuGR2rgBzCzffX8O9o1fXVSCpKQICISzWWbNFQAFszUm4CG', 'petani', NULL, '2026-03-09 09:50:39', '2026-03-09 09:50:39'),
-(12, 'deva', '$2y$12$heqqXszwXAeU5VpL2LGtD.3hoYQYmRLbzlR3Wb2jpfK64WsxHTlSG', 'petani', NULL, '2026-03-09 23:26:24', '2026-03-09 23:26:24');
+(14, 'mariadi', '$2y$12$H/x3BMxcmPBXm8ZaeHsFR.PSDnU9B22gqiwKKPYnFVOgcQ9uH4u4C', 'petani', NULL, '2026-03-10 05:15:53', '2026-03-10 05:15:53');
 
 --
 -- Indexes for dumped tables
@@ -342,6 +385,14 @@ INSERT INTO `users` (`id`, `username`, `password`, `role`, `remember_token`, `cr
 --
 ALTER TABLE `bibits`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `bibit_petani`
+--
+ALTER TABLE `bibit_petani`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `bibit_petani_bibit_id_foreign` (`bibit_id`),
+  ADD KEY `bibit_petani_petani_id_foreign` (`petani_id`);
 
 --
 -- Indexes for table `cache`
@@ -387,6 +438,13 @@ ALTER TABLE `lahans`
 --
 ALTER TABLE `migrations`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `notifications_notifiable_type_notifiable_id_index` (`notifiable_type`,`notifiable_id`);
 
 --
 -- Indexes for table `password_reset_tokens`
@@ -447,7 +505,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `bibits`
 --
 ALTER TABLE `bibits`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `bibit_petani`
+--
+ALTER TABLE `bibit_petani`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `failed_jobs`
@@ -465,13 +529,13 @@ ALTER TABLE `jobs`
 -- AUTO_INCREMENT for table `lahans`
 --
 ALTER TABLE `lahans`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `periodes`
@@ -483,7 +547,7 @@ ALTER TABLE `periodes`
 -- AUTO_INCREMENT for table `petanis`
 --
 ALTER TABLE `petanis`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `pindah_jatahs`
@@ -495,17 +559,24 @@ ALTER TABLE `pindah_jatahs`
 -- AUTO_INCREMENT for table `transaksis`
 --
 ALTER TABLE `transaksis`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `bibit_petani`
+--
+ALTER TABLE `bibit_petani`
+  ADD CONSTRAINT `bibit_petani_bibit_id_foreign` FOREIGN KEY (`bibit_id`) REFERENCES `bibits` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `bibit_petani_petani_id_foreign` FOREIGN KEY (`petani_id`) REFERENCES `petanis` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `lahans`

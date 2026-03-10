@@ -10,26 +10,36 @@
             <div class="space-y-5">
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Pilih Petani Pengirim (Kurangi Jatah)</label>
-                    <select name="pengirim_id" class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm" required>
-                        <option value="">-- Pilih Pengirim --</option>
-                        @foreach($petanis as $p)
-                            @php
-                                $totalLuas = \App\Models\Lahan::where('petani_id', $p->id)->where('status', 'disetujui')->sum('luas_lahan');
-                                $jatahLahan = ($totalLuas / 100) * 10;
-                                $sisaJatah = $jatahLahan + ($p->jatah_tambahan ?? 0);
-                            @endphp
-                            <option value="{{ $p->id }}">{{ $p->nama_lengkap }} (Sisa Jatah: {{ $sisaJatah }} kg)</option>
-                        @endforeach
-                    </select>
+                    <div class="relative">
+                        <select name="pengirim_id" class="appearance-none block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm pr-10" required>
+                            <option value="">-- Pilih Pengirim --</option>
+                            @foreach($petanis as $p)
+                                @php
+                                    $totalLuas = \App\Models\Lahan::where('petani_id', $p->id)->where('status', 'disetujui')->sum('luas_lahan');
+                                    $jatahLahan = ($totalLuas / 100) * 10;
+                                    $sisaJatah = $jatahLahan + ($p->jatah_tambahan ?? 0);
+                                @endphp
+                                <option value="{{ $p->id }}">{{ $p->nama_lengkap }} (Sisa Jatah: {{ $sisaJatah }} kg)</option>
+                            @endforeach
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                            <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                        </div>
+                    </div>
                 </div>
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Pilih Petani Penerima (Tambah Jatah)</label>
-                    <select name="penerima_id" class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm" required>
-                        <option value="">-- Pilih Penerima --</option>
-                        @foreach($petanis as $p)
-                            <option value="{{ $p->id }}">{{ $p->nama_lengkap }}</option>
-                        @endforeach
-                    </select>
+                    <div class="relative">
+                        <select name="penerima_id" class="appearance-none block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm pr-10" required>
+                            <option value="">-- Pilih Penerima --</option>
+                            @foreach($petanis as $p)
+                                <option value="{{ $p->id }}">{{ $p->nama_lengkap }}</option>
+                            @endforeach
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                            <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                        </div>
+                    </div>
                 </div>
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Jumlah Jatah (Kg)</label>

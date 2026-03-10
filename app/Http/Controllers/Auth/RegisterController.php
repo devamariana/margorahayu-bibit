@@ -142,6 +142,18 @@ public function verifyOtp(Request $request)
         ]);
 
         DB::commit(); 
+
+        // Beritahu admin ada pendaftaran baru
+        $admins = \App\Models\User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            $admin->notify(new \App\Notifications\SistemNotifikasi(
+                'Pendaftaran Petani Baru', 
+                "Petani baru bernama {$sessData['username']} telah mendaftar dengan nomor HP {$sessData['no_hp']}. Mohon tunggu mereka melengkapi profil sebelum Anda memverifikasinya.", 
+                'info',
+                url('/admin/data-petani'),
+                $user->id
+            ));
+        }
         
         // C. Bersihkan Sesi
         Session::forget('register_data');

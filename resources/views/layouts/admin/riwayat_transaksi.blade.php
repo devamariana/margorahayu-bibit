@@ -32,7 +32,8 @@
                         <th class="p-4 border-b">Nama Petani</th>
                         <th class="p-4 border-b">Bibit Dibeli</th>
                         <th class="p-4 border-b">Total Harga</th>
-                        <th class="p-4 border-b">Status (Midtrans)</th>
+                        <th class="p-4 border-b text-center">Status</th>
+                        <th class="p-4 border-b text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -45,13 +46,35 @@
                             <span class="text-[10px] text-gray-400">Lahan: {{ $t->lahan->nama_blok ?? 'Dihapus' }}</span>
                         </td>
                         <td class="p-4 font-bold text-[#2D6A4F] tracking-tight">Rp {{ number_format($t->total_harga, 0, ',', '.') }}</td>
-                        <td class="p-4">
-                            @if($t->status_pembayaran == 'sukses' || $t->status_pembayaran == 'lunas')
-                                <span class="px-3 py-1 bg-green-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">SUCCESS</span>
-                            @elseif($t->status_pembayaran == 'pending')
-                                <span class="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">PENDING</span>
+                        <td class="p-4 text-center">
+                            @if($t->status_pembayaran == 'menunggu_persetujuan')
+                                <span class="px-3 py-1 bg-yellow-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">MENUNGGU PERSETUJUAN</span>
+                            @elseif($t->status_pembayaran == 'menunggu_pembayaran' || $t->status_pembayaran == 'pending')
+                                <span class="px-3 py-1 bg-blue-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">BELUM DIBAYAR</span>
+                            @elseif($t->status_pembayaran == 'sukses')
+                                <span class="px-3 py-1 bg-green-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">LUNAS</span>
+                            @elseif($t->status_pembayaran == 'kadaluarsa')
+                                <span class="px-3 py-1 bg-gray-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">KADALUARSA</span>
                             @else
-                                <span class="px-3 py-1 bg-red-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">CANCELLED</span>
+                                <span class="px-3 py-1 bg-red-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter">DITOLAK/BATAL</span>
+                            @endif
+                        </td>
+                        <td class="p-4 text-center">
+                            @if($t->status_pembayaran == 'menunggu_persetujuan')
+                                <div class="flex flex-col sm:flex-row gap-2 justify-center">
+                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST" onsubmit="return confirm('Setujui pesanan ini?');">
+                                        @csrf
+                                        <input type="hidden" name="status_pembayaran" value="menunggu_pembayaran">
+                                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm w-full"><i class="fas fa-check mr-1"></i>Acc</button>
+                                    </form>
+                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST" onsubmit="return confirm('Tolak pesanan ini dan kembalikan stok?');">
+                                        @csrf
+                                        <input type="hidden" name="status_pembayaran" value="ditolak">
+                                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm w-full"><i class="fas fa-times mr-1"></i>Tolak</button>
+                                    </form>
+                                </div>
+                            @else
+                                <span class="text-gray-400 italic text-xs">-</span>
                             @endif
                         </td>
                     </tr>
