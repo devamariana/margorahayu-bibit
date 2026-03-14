@@ -29,15 +29,41 @@
 
     {{-- Tombol Logout --}}
     <div class="p-4 border-t border-[#2D6A4F] bg-[#0F2921]/50">
-        <form action="{{ route('logout') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin keluar?')">
+        <form id="logoutFormSuperadmin" action="{{ route('logout') }}" method="POST">
             @csrf
-            <button type="submit" class="w-full flex items-center justify-center py-3 px-4 rounded-xl text-white bg-red-600 hover:bg-red-700 transition duration-300 shadow-lg group">
+            <button type="button" onclick="confirmLogoutSuperadmin()" class="w-full flex items-center justify-center py-3 px-4 rounded-xl text-white bg-red-600 hover:bg-red-700 transition duration-300 shadow-lg group">
                 <i class="fas fa-power-off mr-3 text-sm group-hover:rotate-90 transition"></i> 
                 <span class="font-bold uppercase tracking-wider text-xs">Logout Superadmin</span>
             </button>
         </form>
     </div>
 </div>
+
+<script>
+    function confirmLogoutSuperadmin() {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Apakah anda ingin logout?',
+                text: "Anda akan keluar dari kendali penuh superadmin.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#EF4444',
+                cancelButtonColor: '#2D6A4F',
+                confirmButtonText: 'Ya, Logout!',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('logoutFormSuperadmin').submit();
+                }
+            });
+        } else {
+            if (confirm('Apakah Anda yakin ingin keluar?')) {
+                document.getElementById('logoutFormSuperadmin').submit();
+            }
+        }
+    }
+</script>
 
 <style>
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }

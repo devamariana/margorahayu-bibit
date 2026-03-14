@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-[#F0F7F2] font-sans antialiased text-gray-800">
     <div class="flex h-screen overflow-hidden">
@@ -108,6 +110,39 @@
             </main>
         </div>
     </div>
+
+    <!-- Script Notifikasi Flash SweetAlert2 -->
+    <script>
+        @if(session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: "{{ session('success') }}",
+                showConfirmButton: false,
+                timer: 2500,
+                background: '#fff',
+                color: '#1B4332',
+                iconColor: '#2D6A4F',
+                customClass: {
+                    popup: 'rounded-2xl border-2 border-green-100 shadow-2xl'
+                }
+            });
+        @endif
+
+        @if(session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Perhatian!',
+                text: "{{ session('error') }}",
+                confirmButtonColor: '#2D6A4F',
+                background: '#fff',
+                color: '#852121',
+                customClass: {
+                    popup: 'rounded-2xl border-2 border-red-100 shadow-2xl'
+                }
+            });
+        @endif
+    </script>
 
     <!-- Global Image Modal Overlay -->
     <div id="globalImageModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm transition-opacity duration-300 opacity-0" onclick="closeGlobalImageModal()">
@@ -226,6 +261,32 @@
                 toggleAdminNotif();
             }
         });
+
+        // Global SweetAlert Confirm Handler
+        function confirmAction(button, message, type = 'question') {
+            const form = button.closest('form');
+            Swal.fire({
+                title: 'Konfirmasi',
+                text: message,
+                icon: type,
+                showCancelButton: true,
+                confirmButtonColor: '#2D6A4F',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Lanjutkan!',
+                cancelButtonText: 'Batal',
+                background: '#fff',
+                borderRadius: '1.25rem',
+                customClass: {
+                    popup: 'rounded-3xl shadow-2xl border border-gray-100',
+                    confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                    cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        }
     </script>
 </body>
 </html>

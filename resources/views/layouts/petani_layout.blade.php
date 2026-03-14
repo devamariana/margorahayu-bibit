@@ -16,7 +16,8 @@
             to { opacity: 1; }
         }
     </style>
-    <!-- Intro.js Stylesheet -->
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css">
     <style>
         /* Custom Intro.js Styling for better integration */
@@ -150,6 +151,39 @@
             </script>
             @endif
 
+            <!-- Script Notifikasi Flash SweetAlert2 -->
+            <script>
+                @if(session('success'))
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: "{{ session('success') }}",
+                        showConfirmButton: false,
+                        timer: 2500,
+                        background: '#fff',
+                        color: '#1B4332',
+                        iconColor: '#2D6A4F',
+                        customClass: {
+                            popup: 'rounded-3xl border-2 border-green-100 shadow-2xl'
+                        }
+                    });
+                @endif
+
+                @if(session('error'))
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Perhatian!',
+                        text: "{{ session('error') }}",
+                        confirmButtonColor: '#2D6A4F',
+                        background: '#fff',
+                        color: '#852121',
+                        customClass: {
+                            popup: 'rounded-3xl border-2 border-red-100 shadow-2xl'
+                        }
+                    });
+                @endif
+            </script>
+
             <main class="flex-1 overflow-x-hidden overflow-y-auto p-6 md:p-8 fade-in">
                 {{-- Konten dari dashboard atau profil akan muncul di sini --}}
                 @yield('content')
@@ -221,6 +255,32 @@
             } else {
                 overlay.classList.remove('hidden');
             }
+        }
+
+        // Global SweetAlert Confirm Handler
+        function confirmAction(button, message, type = 'question') {
+            const form = button.closest('form');
+            Swal.fire({
+                title: 'Konfirmasi',
+                text: message,
+                icon: type,
+                showCancelButton: true,
+                confirmButtonColor: '#2D6A4F',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Lanjutkan!',
+                cancelButtonText: 'Batal',
+                background: '#fff',
+                borderRadius: '1.25rem',
+                customClass: {
+                    popup: 'rounded-3xl shadow-2xl border border-gray-100',
+                    confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                    cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
         }
     </script>
 

@@ -227,10 +227,24 @@ class PetaniController extends Controller
 
         // Generate Snap Token jika belum ada dan status menunggu pembayaran
         if (empty($transaksi->snap_token) && $transaksi->status_pembayaran == 'menunggu_pembayaran') {
-            \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
-            \Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false); 
-            \Midtrans\Config::$isSanitized = true;
-            \Midtrans\Config::$is3ds = true;
+            
+            // Konfigurasi Midtrans
+            \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+            \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
+            \Midtrans\Config::$isSanitized = config('services.midtrans.is_sanitized');
+            \Midtrans\Config::$is3ds = config('services.midtrans.is_3ds');
+
+            // Inisialisasi CURL Options untuk mencegah error "Undefined array key 10023"
+            // Dan sekaligus bypass SSL Certificate issue di localhost secara aman
+            \Midtrans\Config::$curlOptions = array(
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+            );
+
+            // Validasi Kunci
+            if (empty(\Midtrans\Config::$serverKey)) {
+                return back()->with('error', 'Konfigurasi Midtrans (Server Key) belum diisi di file .env');
+            }
 
             $params = [
                 'transaction_details' => [
@@ -241,14 +255,14 @@ class PetaniController extends Controller
                     'first_name' => collect(explode(' ', $petani->nama_lengkap))->first(),
                     'last_name' => collect(explode(' ', $petani->nama_lengkap))->slice(1)->implode(' '),
                     'phone' => str_replace('+', '', $petani->no_hp),
-                    'email' => 'petani_' . $petani->id . '@example.com', // Added to prevent Midtrans reject anomalies
+                    'email' => 'petani_' . $petani->id . '@example.com',
                 ],
                 'item_details' => [
                     [
                         'id' => $transaksi->bibit->id,
                         'price' => $transaksi->bibit->harga_subsidi,
                         'quantity' => $transaksi->jumlah_beli,
-                        'name' => $transaksi->bibit->nama_bibit
+                        'name' => substr($transaksi->bibit->nama_bibit, 0, 50) // Nama barang dibatasi agar tidak terlalu panjang
                     ]
                 ]
             ];
@@ -258,6 +272,8 @@ class PetaniController extends Controller
                 $transaksi->snap_token = $snapToken;
                 $transaksi->save();
             } catch (\Exception $e) {
+                // Log error untuk debug internal jika diperlukan
+                \Illuminate\Support\Facades\Log::error('Midtrans Error: ' . $e->getMessage());
                 return back()->with('error', 'Gagal memanggil Gateway Pembayaran: ' . $e->getMessage());
             }
         }
@@ -397,7 +413,7 @@ class PetaniController extends Controller
                 "Petani atas nama {$petani->nama_lengkap} telah melengkapi data profil dan berkas identitasnya. Mohon segera cek dan validasi kebenarannya.", 
                 'info',
                 url('/admin/data-petani'),
-                $user->id
+                $petani->user_id
             ));
         }
 

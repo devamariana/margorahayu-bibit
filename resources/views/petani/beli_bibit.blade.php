@@ -6,26 +6,7 @@
 <div class="space-y-8">
 
     {{-- Alert Messages --}}
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl relative flex items-center gap-3">
-            <i class="fas fa-exclamation-circle text-lg"></i>
-            <span class="block sm:inline font-bold">{{ session('error') }}</span>
-        </div>
-    @endif
-    
-    @if($errors->any())
-        <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl relative">
-            <div class="flex items-center gap-3 mb-2">
-                <i class="fas fa-exclamation-triangle text-lg"></i>
-                <span class="block sm:inline font-bold">Harap periksa kembali isian Anda:</span>
-            </div>
-            <ul class="list-disc pl-10 text-sm">
-                @foreach($errors->all() as $err)
-                    <li>{{ $err }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+    {{-- Notifikasi Error via Layout (Global SweetAlert2) --}}
 
     {{-- BAGIAN PILIH LAHAN TERLEBIH DAHULU --}}
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-green-100 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -163,7 +144,12 @@
         const selectedOption = selectLahan.options[selectLahan.selectedIndex];
         
         if (!selectedOption.value) {
-            alert('Silakan pilih lahan yang akan ditanami terlebih dahulu!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Perhatian',
+                text: 'Silakan pilih lahan yang akan ditanami terlebih dahulu!',
+                confirmButtonColor: '#2D6A4F'
+            });
             return;
         }
 
@@ -174,7 +160,12 @@
         
         if (kuota > 0 && estimasiBerat > kuota) {
             estimasiBerat = parseFloat(kuota);
-            alert(`Perhatian: Jatah lahan Anda melebihi batas kuota bibit ini. Pesanan disesuaikan ke maksimal: ${kuota} kg.`);
+            Swal.fire({
+                icon: 'info',
+                title: 'Informasi Jatah',
+                text: `Jatah lahan Anda melebihi batas kuota bibit ini. Pesanan disesuaikan ke maksimal: ${kuota} kg.`,
+                confirmButtonColor: '#2D6A4F'
+            });
         }
 
         const total = estimasiBerat * harga;

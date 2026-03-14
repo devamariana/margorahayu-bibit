@@ -4,12 +4,7 @@
 
 @section('content')
 <div class="space-y-6">
-    {{-- Notifikasi Sukses/Error --}}
-    @if(session('success'))
-    <div class="bg-green-100 border-l-4 border-green-500 p-4 rounded shadow-sm">
-        <p class="text-green-700 font-bold"><i class="fas fa-check-circle mr-2"></i>{{ session('success') }}</p>
-    </div>
-    @endif
+    {{-- Notifikasi via Layout (Global) --}}
 
     <div class="flex flex-col md:flex-row justify-between items-center gap-4">
         {{-- Fitur Cari --}}
@@ -70,10 +65,10 @@
                                     <i class="fas fa-edit text-[10px]"></i>
                                 </button>
                                 
-                                <form action="{{ route('admin.data_bibit.destroy', $b->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus?')">
+                                <form action="{{ route('admin.data_bibit.destroy', $b->id) }}" method="POST">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" title="Hapus" class="w-8 h-8 bg-[#DC3545] hover:bg-red-600 text-white rounded shadow-sm flex items-center justify-center transition">
+                                    <button type="button" onclick="confirmAction(this, 'Hapus data bibit ini?', 'warning')" title="Hapus" class="w-8 h-8 bg-[#DC3545] hover:bg-red-600 text-white rounded shadow-sm flex items-center justify-center transition">
                                         <i class="fas fa-trash-alt text-[10px]"></i>
                                     </button>
                                 </form>

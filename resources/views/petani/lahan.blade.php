@@ -16,12 +16,7 @@
     </div>
 
     {{-- Alert Success --}}
-    @if(session('success'))
-    <div class="mb-6 p-4 bg-green-500 text-white rounded-2xl shadow-lg flex items-center">
-        <i class="fas fa-check-circle mr-3"></i>
-        {{ session('success') }}
-    </div>
-    @endif
+    {{-- Notifikasi via Layout (Global SweetAlert2) --}}
 
     {{-- Statistik Ringkas --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -80,9 +75,9 @@
                             <button class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <form action="{{ route('petani.hapus_lahan', $lahan->id) }}" method="POST" onsubmit="return confirm('Hapus lahan ini?')">
+                            <form action="{{ route('petani.hapus_lahan', $lahan->id) }}" method="POST">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition">
+                                <button type="button" onclick="confirmAction(this, 'Hapus data lahan ini?', 'warning')" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
@@ -175,14 +170,24 @@
     document.getElementById('lahanForm').addEventListener('submit', function(e) {
         const luas = document.getElementById('luas_lahan').value;
         if (!luas || parseInt(luas) <= 0) {
-            alert('Perhatian: Luas lahan tidak boleh 0 atau kosong!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Perhatian',
+                text: 'Luas lahan tidak boleh 0 atau kosong!',
+                confirmButtonColor: '#2D6A4F'
+            });
             e.preventDefault();
             return;
         }
         
         const bibitInput = document.getElementById('rencana_bibit_input').value;
         if (!bibitInput) {
-            alert('Silakan pilih rencana bibit terlebih dahulu!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Perhatian',
+                text: 'Silakan pilih rencana bibit terlebih dahulu!',
+                confirmButtonColor: '#2D6A4F'
+            });
             e.preventDefault();
             return;
         }

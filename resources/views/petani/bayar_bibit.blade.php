@@ -43,10 +43,10 @@
             <button id="pay-button" class="w-full bg-[#007BFF] hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-sm flex items-center justify-center gap-3">
                 <i class="fas fa-lock"></i> Bayar Sekarang Secara Aman
             </button>
-            <form action="{{ route('petani.batal_bayar', $transaksi->id) }}" method="POST" class="mt-4" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan pembayaran ini? Stok akan dikembalikan dan Anda harus memesan ulang.');">
+            <form action="{{ route('petani.batal_bayar', $transaksi->id) }}" method="POST" class="mt-4">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="w-full bg-white hover:bg-red-50 text-red-500 border border-red-200 font-bold py-3 rounded-xl shadow-sm transition-all duration-300 uppercase tracking-widest text-xs flex items-center justify-center gap-2">
+                <button type="button" onclick="confirmAction(this, 'Batalkan pembayaran ini? \nStok akan dikembalikan dan Anda harus memesan ulang.', 'warning')" class="w-full bg-white hover:bg-red-50 text-red-500 border border-red-200 font-bold py-3 rounded-xl shadow-sm transition-all duration-300 uppercase tracking-widest text-xs flex items-center justify-center gap-2">
                     <i class="fas fa-times-circle"></i> Batalkan Pembayaran
                 </button>
             </form>
@@ -74,16 +74,32 @@
             },
             // Ketika Pending
             onPending: function (result) {
-                alert("Menunggu pembayaran Anda!");
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Menunggu Pembayaran',
+                    text: 'Silakan selesaikan pembayaran sesuai instruksi di Midtrans.',
+                    confirmButtonColor: '#2D6A4F'
+                });
             },
             // Ketika Gagal
             onError: function (result) {
-                alert("Pembayaran gagal!");
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Pembayaran gagal! Silakan coba lagi atau hubungi admin.',
+                    confirmButtonColor: '#2D6A4F'
+                });
             },
             // Ketika Close tanpa bayar
             onClose: function () {
-                alert('Anda menutup layar pembayaran belum selesai. Transaksi tersimpan sebagai pending.');
-                window.location.href = "{{ route('petani.riwayat') }}";
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Batal Membayar?',
+                    text: 'Anda menutup layar pembayaran. Silakan bayar melalui menu Riwayat Pembelian.',
+                    confirmButtonColor: '#2D6A4F'
+                }).then(() => {
+                    window.location.href = "{{ route('petani.riwayat') }}";
+                });
             }
         });
     };

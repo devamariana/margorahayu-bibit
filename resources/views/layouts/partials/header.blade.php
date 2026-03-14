@@ -99,8 +99,71 @@
         </div>
         @endif
 
-        <div class="w-10 h-10 rounded-full bg-[#2D6A4F] flex items-center justify-center text-white shadow-lg border-2 border-[#D8F3DC]">
-            <i class="fas fa-user"></i>
+        {{-- PROFILE DROPDOWN --}}
+        <div class="relative flex items-center" id="userProfileDropdown">
+            <button onclick="toggleUserDropdown()" class="flex items-center group focus:outline-none">
+                <div class="w-10 h-10 rounded-full bg-[#2D6A4F] flex items-center justify-center text-white shadow-lg border-2 border-[#D8F3DC] group-hover:scale-105 transition-transform overflow-hidden">
+                    <i class="fas fa-user text-sm"></i>
+                </div>
+                <i class="fas fa-chevron-down ml-2 text-[10px] text-gray-400 group-hover:text-[#2D6A4F] transition-colors"></i>
+            </button>
+
+            <!-- Dropdown Menu Profil Premium -->
+            <div id="userDropdownMenu" class="absolute right-0 top-full mt-3 w-72 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-gray-100 hidden flex-col z-50 transform origin-top-right transition-all duration-200 scale-95 opacity-0 overflow-hidden">
+                {{-- Header Profil dengan Background --}}
+                <div class="relative h-24 bg-gradient-to-br from-[#1B4332] to-[#2D6A4F]">
+                    <div class="absolute inset-0 opacity-10" style="background-image: url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 10l10 10H0L10 10z\' fill=\'%23ffffff\' fill-rule=\'evenodd\'/%3E%3C/svg%3E');"></div>
+                </div>
+                
+                {{-- Foto & Nama (Dibuat melayang di tengah) --}}
+                <div class="px-6 pb-6 -mt-10 relative z-10 text-center">
+                    <div class="w-20 h-20 mx-auto rounded-2xl bg-white p-1 shadow-xl mb-3">
+                        <div class="w-full h-full rounded-xl bg-[#D8F3DC] flex items-center justify-center text-[#1B4332]">
+                            <i class="fas fa-user text-3xl"></i>
+                        </div>
+                    </div>
+                    <h3 class="font-bold text-gray-800 text-base leading-tight">{{ $petani->nama_lengkap ?? Auth::user()->username }}</h3>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">ID Petani: #{{ str_pad($petani->id, 4, '0', STR_PAD_LEFT) }}</p>
+                    
+                    @if(isset($petani) && $petani->status == 'disetujui')
+                        <div class="mt-2 inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm border border-green-200">
+                            <i class="fas fa-certificate mr-1 text-[10px]"></i> Akun Terverifikasi
+                        </div>
+                    @else
+                        <div class="mt-2 inline-flex items-center px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm border border-orange-200">
+                            <i class="fas fa-clock mr-1 text-[10px]"></i> Menunggu Verifikasi
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Detail Information (Bukan Edit Form) --}}
+                <div class="px-6 py-4 bg-gray-50/50 border-y border-gray-100 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase">NIK</span>
+                        <span class="text-xs font-bold text-gray-700 tracking-wider">{{ $petani->nik ? substr($petani->nik, 0, 6) . '********' : '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase">WhatsApp</span>
+                        <span class="text-xs font-bold text-gray-700 tracking-wider">{{ $petani->no_hp ?? '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase">Gabung Sejak</span>
+                        <span class="text-xs font-bold text-gray-700 tracking-wider">{{ $petani->created_at->format('M Y') }}</span>
+                    </div>
+                </div>
+
+                {{-- Dashboard Actions --}}
+                <div class="p-4 grid grid-cols-2 gap-2">
+                    <a href="{{ route('petani.profil') }}" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-gray-100 hover:border-[#2D6A4F] hover:bg-green-50 transition-all group">
+                        <i class="fas fa-user-edit text-[#2D6A4F] mb-1 group-hover:scale-110 transition"></i>
+                        <span class="text-[10px] font-bold text-gray-600">Edit Profil</span>
+                    </a>
+                    <button onclick="confirmLogout()" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-gray-100 hover:border-red-200 hover:bg-red-50 transition-all group">
+                        <i class="fas fa-sign-out-alt text-red-500 mb-1 group-hover:scale-110 transition"></i>
+                        <span class="text-[10px] font-bold text-gray-600">Logout</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </header>
@@ -171,5 +234,34 @@
         if (isNotifOpen && center && !center.contains(event.target)) {
             toggleNotificationDropdown();
         }
+
+        const userDropdown = document.getElementById('userProfileDropdown');
+        if (isUserOpen && userDropdown && !userDropdown.contains(event.target)) {
+            toggleUserDropdown();
+        }
     });
+
+    let isUserOpen = false;
+    const userMenu = document.getElementById('userDropdownMenu');
+
+    function toggleUserDropdown() {
+        if (!userMenu) return;
+        
+        isUserOpen = !isUserOpen;
+        if(isUserOpen) {
+            userMenu.classList.remove('hidden');
+            userMenu.classList.add('flex');
+            setTimeout(() => {
+                userMenu.classList.remove('scale-95', 'opacity-0');
+                userMenu.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            userMenu.classList.remove('scale-100', 'opacity-100');
+            userMenu.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                userMenu.classList.add('hidden');
+                userMenu.classList.remove('flex');
+            }, 200);
+        }
+    }
 </script>

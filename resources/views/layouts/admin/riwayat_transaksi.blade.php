@@ -62,15 +62,15 @@
                         <td class="p-4 text-center">
                             @if($t->status_pembayaran == 'menunggu_persetujuan')
                                 <div class="flex flex-col sm:flex-row gap-2 justify-center">
-                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST" onsubmit="return confirm('Setujui pesanan ini?');">
+                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST">
                                         @csrf
                                         <input type="hidden" name="status_pembayaran" value="menunggu_pembayaran">
-                                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm w-full"><i class="fas fa-check mr-1"></i>Acc</button>
+                                        <button type="button" onclick="confirmAction(this, 'Setujui pesanan bibit ini? \n(Petani akan menerima notifikasi pembayaran)')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm w-full"><i class="fas fa-check mr-1"></i>Acc</button>
                                     </form>
-                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST" onsubmit="return confirm('Tolak pesanan ini dan kembalikan stok?');">
+                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST">
                                         @csrf
                                         <input type="hidden" name="status_pembayaran" value="ditolak">
-                                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm w-full"><i class="fas fa-times mr-1"></i>Tolak</button>
+                                        <button type="button" onclick="confirmAction(this, 'Tolak pesanan ini dan kembalikan stok bibit?', 'warning')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm w-full"><i class="fas fa-times mr-1"></i>Tolak</button>
                                     </form>
                                 </div>
                             @else

@@ -4,12 +4,7 @@
 
 @section('content')
 <div class="space-y-6">
-    {{-- Notifikasi Sukses --}}
-    @if(session('success'))
-    <div class="bg-green-100 border-l-4 border-green-500 p-4 rounded shadow-sm">
-        <p class="text-green-700 font-bold"><i class="fas fa-check-circle mr-2"></i>{{ session('success') }}</p>
-    </div>
-    @endif
+    {{-- Notifikasi Sukses via Layout (Global SweetAlert2) --}}
     <div class="flex justify-end items-center">
         <div class="relative w-full md:w-80">
             <input type="text" 
@@ -56,14 +51,14 @@
                                     <form action="{{ route('admin.verifikasi_lahan', $l->id) }}" method="POST">
                                         @csrf
                                         <input type="hidden" name="status" value="disetujui">
-                                        <button type="submit" title="Setujui Lahan" class="w-8 h-8 bg-[#2D6A4F] hover:bg-green-700 text-white rounded shadow-sm flex items-center justify-center transition">
+                                        <button type="button" onclick="confirmAction(this, 'Setujui data lahan ini?')" title="Setujui Lahan" class="w-8 h-8 bg-[#2D6A4F] hover:bg-green-700 text-white rounded shadow-sm flex items-center justify-center transition">
                                             <i class="fas fa-check text-xs"></i>
                                         </button>
                                     </form>
                                     <form action="{{ route('admin.verifikasi_lahan', $l->id) }}" method="POST">
                                         @csrf
                                         <input type="hidden" name="status" value="ditolak">
-                                        <button type="submit" title="Tolak Lahan" class="w-8 h-8 bg-red-500 hover:bg-red-700 text-white rounded shadow-sm flex items-center justify-center transition">
+                                        <button type="button" onclick="confirmAction(this, 'Tolak data lahan ini?', 'warning')" title="Tolak Lahan" class="w-8 h-8 bg-red-500 hover:bg-red-700 text-white rounded shadow-sm flex items-center justify-center transition">
                                             <i class="fas fa-times text-xs"></i>
                                         </button>
                                     </form>

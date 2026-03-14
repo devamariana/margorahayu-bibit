@@ -43,12 +43,38 @@
     </nav>
 
     <div class="p-4 border-t border-[#40916C]">
-        <form action="{{ route('logout') }}" method="POST">
+        <form id="logoutForm" action="{{ route('logout') }}" method="POST">
             @csrf
-            <button type="submit" class="w-full flex items-center py-3 px-4 rounded-xl text-white bg-red-600 hover:bg-red-700 transition duration-300 shadow-md">
+            <button type="button" onclick="confirmLogout()" class="w-full flex items-center py-3 px-4 rounded-xl text-white bg-red-600 hover:bg-red-700 transition duration-300 shadow-md">
                 <i class="fas fa-power-off mr-3 text-sm"></i> 
                 <span class="font-bold uppercase tracking-wider text-xs">Logout</span>
             </button>
         </form>
     </div>
 </div>
+
+<script>
+    function confirmLogout() {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Apakah anda ingin logout?',
+                text: "Sesi Anda akan berakhir jika Anda logout.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#EF4444',
+                cancelButtonColor: '#2D6A4F',
+                confirmButtonText: 'Ya, Logout!',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('logoutForm').submit();
+                }
+            });
+        } else {
+            if (confirm('Apakah anda ingin logout?')) {
+                document.getElementById('logoutForm').submit();
+            }
+        }
+    }
+</script>
