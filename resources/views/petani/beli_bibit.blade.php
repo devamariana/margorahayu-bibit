@@ -37,9 +37,13 @@
     {{-- TAMPILAN PRODUK DARI DATABASE --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         @forelse($semuaBibit as $b)
-        <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->pivot->kuota_maksimal ?? 0 }})" 
+        <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->stok_awal }}, {{ $b->total_luas_snapshot }}, false, {{ $b->stok }})" 
              class="bibit-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center hover:border-green-500 hover:shadow-md transition cursor-pointer relative overflow-hidden">
             
+            <div class="absolute top-0 right-0 flex flex-col items-end">
+                <span class="bg-gray-100 text-[8px] font-bold px-2 py-1 text-gray-400">Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/y') }}</span>
+            </div>
+
             <div class="w-full h-32 border-2 border-gray-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden bg-gray-50">
                 @if($b->gambar)
                     <img src="{{ asset('uploads/bibit/' . $b->gambar) }}" class="object-cover w-full h-full zoomable-image hover:opacity-80 transition">
@@ -56,14 +60,12 @@
             <p class="text-[#2D6A4F] font-black mb-3">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}/kg</p>
             
             @if($b->stok > 0)
-                <span class="inline-block px-4 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">Tersedia: {{ $b->stok }} kg</span>
+                <span class="inline-block px-4 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">Stok: {{ $b->stok }} kg</span>
             @else
                 <span class="inline-block px-4 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200">Stok Habis</span>
             @endif
             
-            @if(isset($b->pivot->kuota_maksimal) && $b->pivot->kuota_maksimal > 0)
-                <p class="text-[10px] text-orange-600 mt-3 font-bold uppercase tracking-widest">Maksimal Beli: {{ $b->pivot->kuota_maksimal }} kg</p>
-            @endif
+            <p class="text-[9px] text-gray-400 mt-3 font-medium italic">Dibagi proporsional sesuai luas lahan</p>
         </div>
         @empty
         <div class="col-span-3 bg-white p-10 rounded-xl text-center border border-dashed border-gray-300">
@@ -82,7 +84,6 @@
             {{-- Input Hidden untuk mengirim data ke TransaksiController --}}
             <input type="hidden" name="lahan_id" id="input-lahan-id">
             <input type="hidden" name="bibit_id" id="input-bibit-id">
-            <input type="hidden" name="jumlah_beli" id="input-jumlah-beli">
             <input type="hidden" name="total_harga" id="input-total-harga">
 
             <div class="space-y-4">
@@ -91,31 +92,47 @@
                     <span class="font-bold text-gray-800">Rp 0</span>
                 </div>
 
-                <div id="detail-pesanan" class="hidden space-y-4 border-b pb-4">
-                    <div class="flex justify-between text-gray-700">
-                        <span id="label-bibit" class="font-bold text-lg text-[#2D6A4F]">Nama Bibit</span>
-                        <span id="harga-item" class="font-bold">Rp 0</span>
+                <div id="detail-pesanan" class="hidden space-y-6 border-b pb-6">
+                    <div class="flex justify-between items-center text-gray-700">
+                        <span id="label-bibit" class="font-black text-2xl text-[#2D6A4F]">Nama Bibit</span>
+                        <span id="harga-item" class="text-sm font-bold bg-gray-100 px-3 py-1 rounded-full">Rp 0 /kg</span>
                     </div>
-                    <div class="flex justify-between text-sm text-gray-500">
-                        <span>Terpilih untuk Lahan:</span>
-                        <span id="info-lahan-terpilih" class="font-bold text-gray-700">-</span>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <div>
+                            <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Lahan Terpilih</p>
+                            <p id="info-lahan-terpilih" class="font-bold text-gray-700">-</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-orange-400 uppercase font-black tracking-widest mb-1">Hak Jatah Maksimal</p>
+                            <p id="berat-estimasi" class="font-black text-orange-600 text-lg">0 Kg</p>
+                        </div>
                     </div>
-                    <div class="flex justify-between text-sm text-gray-500 italic">
-                        <span>Jatah Lahan (10% dari luas)</span>
-                        <span id="berat-estimasi" class="font-bold text-orange-600">0 Kg</span>
+
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 border-t border-dashed border-gray-200">
+                        <div class="max-w-xs">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Jumlah Dijemput/Diambil (Kg)</label>
+                            <div class="relative">
+                                <input type="number" step="0.1" name="jumlah_beli" id="input-jumlah-beli" value="0" min="0.1" class="w-full p-4 bg-white border-2 border-green-600 rounded-xl font-black text-[#2D6A4F] text-xl focus:ring-4 focus:ring-green-100 outline-none transition" oninput="hitungTotalManual()">
+                                <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                                    <span class="font-bold text-gray-400 uppercase text-xs italic">Sesuai Kebutuhan</span>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-2 italic">* Anda boleh mengambil kurang dari atau sama dengan hak jatah maksimal.</p>
+                        </div>
+
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-gray-500 block mb-1">Subtotal Pembayaran</span>
+                            <span id="total-harga" class="text-4xl font-black text-[#2D6A4F]">Rp 0</span>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="flex justify-between items-center py-2 border-b pb-4">
-                    <span class="text-lg font-bold text-gray-800">Total Pembayaran</span>
-                    <span id="total-harga" class="text-2xl font-bold text-[#2D6A4F]">Rp 0</span>
                 </div>
 
-                <p class="text-center text-[10px] text-gray-400 mt-6 italic">Permintaan pembelian memerlukan persetujuan Admin sebelum lanjut ke pembayaran</p>
+                <p class="text-center text-[10px] text-gray-400 mt-6 italic">Klik tombol di bawah untuk memproses pesanan dan langsung melakukan pembayaran via Midtrans</p>
 
                 <div class="flex justify-end mt-6">
-                    <button type="submit" id="btn-bayar" class="bg-gray-400 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition duration-300 cursor-not-allowed" disabled>
-                        Ajukan Permintaan Pembelian
+                    <button type="submit" id="btn-bayar" class="bg-gray-400 text-white font-bold py-4 px-10 rounded-2xl shadow-lg transition duration-300 cursor-not-allowed uppercase tracking-widest text-sm" disabled>
+                        Konfirmasi & Bayar Sekarang
                     </button>
                 </div>
             </div>
@@ -124,6 +141,9 @@
 </div>
 
 <script>
+    let currentHarga = 0;
+    let currentQuota = 0;
+
     function resetPilihanBibit() {
         document.querySelectorAll('.bibit-card').forEach(card => {
             card.classList.remove('border-green-500', 'ring-2', 'ring-green-200');
@@ -134,85 +154,98 @@
         document.getElementById('btn-bayar').disabled = true;
         document.getElementById('total-harga').innerText = 'Rp 0';
         
-        // Kosongkan input hidden
+        // Kosongkan input
         document.getElementById('input-lahan-id').value = '';
         document.getElementById('input-bibit-id').value = '';
+        document.getElementById('input-jumlah-beli').value = 0;
     }
 
-    function pilihBibit(id, nama, harga, kuota = 0) {
+    function pilihBibit(id, nama, harga, stokAwal = 0, luasRef = 0, isTerbuka = false, currentStok = 0) {
         const selectLahan = document.getElementById('pilih-lahan');
         const selectedOption = selectLahan.options[selectLahan.selectedIndex];
         
         if (!selectedOption.value) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Perhatian',
-                text: 'Silakan pilih lahan yang akan ditanami terlebih dahulu!',
+                title: 'Lahan Belum Dipilih',
+                text: 'Silakan pilih lokasi lahan Anda terlebih dahulu untuk melihat jatah hak ambil.',
                 confirmButtonColor: '#2D6A4F'
             });
             return;
         }
 
+        currentHarga = harga;
         const luasLahan = parseFloat(selectedOption.getAttribute('data-luas'));
         const jatahTambahan = parseFloat(selectedOption.getAttribute('data-tambahan'));
         
-        let estimasiBerat = (luasLahan / 100) * 10 + jatahTambahan;
+        let hakJatah = 0;
         
-        if (kuota > 0 && estimasiBerat > kuota) {
-            estimasiBerat = parseFloat(kuota);
-            Swal.fire({
-                icon: 'info',
-                title: 'Informasi Jatah',
-                text: `Jatah lahan Anda melebihi batas kuota bibit ini. Pesanan disesuaikan ke maksimal: ${kuota} kg.`,
-                confirmButtonColor: '#2D6A4F'
-            });
-        }
+        // RUMUS PROPORSIONAL: (Luas Lahan / Total Luas Ssnapshot) * Stok Awal
+        let pembagi = luasRef > 0 ? luasRef : 1;
+        hakJatah = ((luasLahan / pembagi) * stokAwal) + jatahTambahan;
+        
+        // Pembulatan 1 desimal untuk kemudahan
+        hakJatah = Math.round(hakJatah * 10) / 10;
 
-        const total = estimasiBerat * harga;
+        currentQuota = hakJatah;
 
-        // Update Input Hidden untuk Form
+        // Update Input Hidden & Display
         document.getElementById('input-lahan-id').value = selectedOption.value;
         document.getElementById('input-bibit-id').value = id;
-        document.getElementById('input-jumlah-beli').value = estimasiBerat;
-        document.getElementById('input-total-harga').value = total;
-
-        // Update Tampilan Ringkasan
+        document.getElementById('input-jumlah-beli').value = hakJatah;
+        document.getElementById('input-jumlah-beli').max = hakJatah;
+        
+        // Display Info
         document.getElementById('placeholder-text').classList.add('hidden');
         document.getElementById('detail-pesanan').classList.remove('hidden');
-        
         document.getElementById('label-bibit').innerText = 'Bibit ' + nama;
         document.getElementById('info-lahan-terpilih').innerText = selectedOption.text;
-        document.getElementById('berat-estimasi').innerText = estimasiBerat + ' Kg';
+        document.getElementById('berat-estimasi').innerText = hakJatah + ' Kg';
         document.getElementById('harga-item').innerText = 'Rp ' + harga.toLocaleString('id-ID') + ' /kg';
-        document.getElementById('total-harga').innerText = 'Rp ' + total.toLocaleString('id-ID');
-
+        
         // Efek visual pada card
         document.querySelectorAll('.bibit-card').forEach(card => {
             card.classList.remove('border-green-500', 'ring-2', 'ring-green-200');
         });
         event.currentTarget.classList.add('border-green-500', 'ring-2', 'ring-green-200');
 
-        checkButtonState(); // Update button state after bibit selection
+        hitungTotalManual();
     }
 
-    function checkButtonState() {
-        const jumlah = parseFloat(document.getElementById('input-jumlah-beli').value) || 0;
+    function hitungTotalManual() {
+        let qty = parseFloat(document.getElementById('input-jumlah-beli').value) || 0;
         const btnBayar = document.getElementById('btn-bayar');
-        const isLahanSelected = document.getElementById('pilih-lahan').value !== "";
 
-        if (jumlah > 0 && isLahanSelected) {
+        // Validasi: Tidak boleh melebihi jatah
+        if (qty > currentQuota) {
+            qty = currentQuota;
+            document.getElementById('input-jumlah-beli').value = qty;
+            Swal.fire({
+                icon: 'error',
+                title: 'Melebihi Jatah',
+                text: 'Anda tidak diperbolehkan mengambil bibit melebihi hak jatah maksimal (' + currentQuota + ' Kg).',
+                confirmButtonColor: '#2D6A4F'
+            });
+        }
+
+        const total = qty * currentHarga;
+        document.getElementById('input-total-harga').value = total;
+        document.getElementById('total-harga').innerText = 'Rp ' + total.toLocaleString('id-ID');
+
+        // Control Button State
+        if (qty > 0 && document.getElementById('input-bibit-id').value) {
             btnBayar.disabled = false;
             btnBayar.classList.remove('bg-gray-400', 'cursor-not-allowed');
-            btnBayar.classList.add('bg-[#D97706]', 'hover:bg-[#B45309]');
+            btnBayar.classList.add('bg-[#D97706]', 'hover:bg-[#B45309]', 'shadow-orange-200');
         } else {
             btnBayar.disabled = true;
             btnBayar.classList.add('bg-gray-400', 'cursor-not-allowed');
-            btnBayar.classList.remove('bg-[#D97706]', 'hover:bg-[#B45309]');
+            btnBayar.classList.remove('bg-[#D97706]', 'hover:bg-[#B45309]', 'shadow-orange-200');
         }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        checkButtonState(); 
+        // Init state
     });
 </script>
 @endsection

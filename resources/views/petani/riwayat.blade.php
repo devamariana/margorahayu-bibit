@@ -65,17 +65,24 @@
                             @endif
                         </td>
                         <td class="p-4 text-center text-xs">
-                            @if($r->status_pembayaran == 'menunggu_pembayaran' || $r->status_pembayaran == 'pending')
-                                <a href="{{ route('petani.bayar_bibit', $r->id) }}" class="inline-block px-4 py-2 bg-[#D97706] hover:bg-[#B45309] text-white font-bold rounded-lg shadow-sm transition">Bayar Sekarang</a>
-                            @elseif($r->status_pembayaran == 'menunggu_persetujuan')
+                            <div class="flex flex-col gap-1 items-center">
+                                @if($r->status_pembayaran == 'menunggu_pembayaran' || $r->status_pembayaran == 'pending')
+                                    <a href="{{ route('petani.bayar_bibit', $r->id) }}" class="inline-block w-full px-4 text-center py-2 bg-[#D97706] hover:bg-[#B45309] text-white font-bold rounded-lg shadow-sm transition">Bayar Sekarang</a>
+                                    <a href="{{ route('petani.riwayat.sync', $r->id) }}" class="text-[9px] text-blue-600 font-bold hover:underline whitespace-nowrap"><i class="fas fa-sync-alt mr-1"></i> Cek Status Bayar</a>
+                                @elseif($r->status_pembayaran == 'menunggu_persetujuan')
                                 <form action="{{ route('petani.batal_bayar', $r->id) }}" method="POST" onsubmit="return confirm('Yakin ingin membatalkan permintaan pesanan ini?');" class="inline">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-sm transition">Batalkan</button>
                                 </form>
+                            @elseif($r->status_pembayaran == 'sukses' || $r->status_pembayaran == 'lunas')
+                                <a href="{{ route('petani.invoice', $r->id) }}" target="_blank" class="inline-flex items-center justify-center px-4 py-2 bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-[10px] font-bold rounded-lg shadow-sm transition uppercase tracking-widest gap-2">
+                                    <i class="fas fa-print"></i> Cetak Struk
+                                </a>
                             @else
                                 <span class="text-gray-400 italic">Selesai</span>
                             @endif
+                            </div>
                         </td>
                     </tr>
                     @empty

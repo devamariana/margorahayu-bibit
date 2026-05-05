@@ -33,4 +33,12 @@ class Lahan extends Model
     {
         return $this->belongsTo(Petani::class, 'petani_id');
     }
+
+    /**
+     * Relasi: Satu lahan bisa memiliki banyak transaksi pembelian bibit
+     */
+    public function transaksi()
+    {
+        return $this->hasMany(Transaksi::class, 'lahan_id');
+    }
 }

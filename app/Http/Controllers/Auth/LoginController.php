@@ -25,26 +25,26 @@ class LoginController extends Controller
 
         $credentials = $request->only('username', 'password');
 
-        // 2. Proses Login
-        if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
-            
-            $user = Auth::user();
+        // 2. Cari user untuk menentukan role
+        $user = User::where('username', $request->username)->first();
 
-            // 3. Logika Pengalihan berdasarkan ROLE
+        // 3. Proses Login menggunakan Guard yang sesuai
+        if ($user && Auth::guard($user->role)->attempt($credentials)) {
+            
+            $request->session()->regenerate();
+
+            // Logika Pengalihan berdasarkan ROLE
             if ($user->role === 'superadmin') {
-                return redirect()->intended(route('superadmin.dashboard'));
+                return redirect()->route('superadmin.dashboard');
             } elseif ($user->role === 'admin') {
-                return redirect()->intended(route('admin.dashboard'));
+                return redirect()->route('admin.dashboard');
             } 
             
-            return redirect()->intended(route('petani.dashboard'));
+            return redirect()->route('petani.dashboard');
         }
 
         // --- TAMBAHAN DEBUG UNTUK NOVAN ---
-        // Jika gagal, kita cek apakah usernamenya ada di DB tapi passwordnya yang salah
-        $userCheck = User::where('username', $request->username)->first();
-        if (!$userCheck) {
+        if (!$user) {
             $errorMessage = 'Username tidak terdaftar di database.';
         } else {
             $errorMessage = 'Password yang Anda masukkan salah.';
@@ -57,7 +57,12 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::logout();
+        // Logout dari semua guard yang mungkin aktif
+        Auth::guard('superadmin')->logout();
+        Auth::guard('admin')->logout();
+        Auth::guard('petani')->logout();
+        Auth::guard('web')->logout();
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect('/login')->with('success', 'Anda telah berhasil keluar.');

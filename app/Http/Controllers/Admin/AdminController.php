@@ -35,7 +35,7 @@ class AdminController extends Controller
 
         // 5. Data Chart Pembayaran
         $totalLunas = \App\Models\Transaksi::where('status_pembayaran', 'sukses')->count();
-        $totalPendingTx = \App\Models\Transaksi::where('status_pembayaran', 'pending')->count();
+        $totalPendingTx = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran'])->count();
 
         // 6. Data Chart Penjualan (6 bulan terakhir)
         $chartLabels = [];
@@ -134,61 +134,85 @@ class AdminController extends Controller
     }
 
     /**
-     * Menampilkan Halaman Fitur Pindah Jatah (Revisi Dosen)
+     * Menampilkan Halaman Fitur Pengalihan Jatah (Revisi Dosen)
      */
     public function pindahJatah()
     {
         // Hanya ambil petani yang sudah terverifikasi (disetujui)
         $petanis = Petani::where('status', 'disetujui')->get();
-        $riwayatPindah = PindahJatah::with(['pengirim', 'penerima'])->latest()->get();
+        // Ambil riwayat dengan relasi bibit
+        $riwayatPindah = PindahJatah::with(['pengirim', 'penerima', 'bibit'])->latest()->get();
+        // Ambil bibit yang sedang aktif
+        $bibitsAktif = Bibit::where('is_buka', true)->get();
         
-        return view('layouts.admin.pindah_jatah', compact('petanis', 'riwayatPindah'));
+        return view('layouts.admin.pindah_jatah', compact('petanis', 'riwayatPindah', 'bibitsAktif'));
     }
 
     /**
-     * Memproses Perpindahan Jatah Antar Petani
+     * Memproses Pengalihan Jatah Antar Petani
      */
     public function prosesPindahJatah(Request $request)
     {
         $request->validate([
-            'pengirim_id' => 'required',
-            'penerima_id' => 'required|different:pengirim_id',
-            'jumlah_kg' => 'required|numeric|min:1',
+            'bibit_id' => 'required|exists:bibits,id',
+            'pengirim_id' => 'required|exists:petanis,id',
+            'penerima_id' => 'required|different:pengirim_id|exists:petanis,id',
+            'jumlah_kg' => 'required|numeric|min:0.1',
         ]);
 
         $pengirim = Petani::findOrFail($request->pengirim_id);
         $penerima = Petani::findOrFail($request->penerima_id);
+        $bibit = Bibit::findOrFail($request->bibit_id);
 
-        // Logika Hitung Sisa Jatah Pengirim (Lahan Disetujui + Tambahan)
-        $lahansDisetujui = \App\Models\Lahan::where('petani_id', $pengirim->id)
-                                          ->where('status', 'disetujui')
-                                          ->get();
-        $totalLuasLahan = $lahansDisetujui->sum('luas_lahan');
-                                          
-        $jatahLahan = ($totalLuasLahan / 100) * 10;
-        $totalSisaJatah = $jatahLahan + ($pengirim->jatah_tambahan ?? 0);
+        if (!$bibit->is_buka) {
+            return back()->with('error', 'Distribusi untuk bibit ini sudah ditutup.');
+        }
 
-        if ($totalSisaJatah < $request->jumlah_kg) {
-            return back()->with('error', 'Jatah pengirim tidak mencukupi untuk dipindahkan!');
+        // Logika Hitung Sisa Jatah Pengirim (Proporsional Dinamis)
+        $totalLuasRef = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : 1;
+        $userArea = Lahan::where('petani_id', $pengirim->id)->where('status', 'disetujui')->sum('luas_lahan');
+        
+        $hakProposional = ($userArea / $totalLuasRef) * $bibit->stok_awal;
+        
+        // Jatah = Hak Proporsional + Transfer Masuk - Transfer Keluar
+        $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg') 
+                           - \App\Models\PindahJatah::where('pengirim_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+        
+        $hakTotal = $hakProposional + $tambahanTransfer;
+        
+        $sudahDibeli = Transaksi::where('petani_id', $pengirim->id)
+                        ->where('bibit_id', $bibit->id)
+                        ->where('status_pembayaran', 'sukses')
+                        ->sum('jumlah_beli');
+        
+        $sisaJatah = max(0, $hakTotal - $sudahDibeli);
+
+        if ($sisaJatah < $request->jumlah_kg) {
+            return back()->with('error', "Jatah pengirim untuk {$bibit->nama_bibit} tidak mencukupi (Sisa: {$sisaJatah} Kg)!");
         }
 
         // Jalankan Transaction agar jika satu gagal, semua batal (Database Integrity)
-        DB::transaction(function () use ($pengirim, $penerima, $request) {
-            // 1. Kurangi jatah pengirim
-            $pengirim->decrement('jatah_tambahan', $request->jumlah_kg);
-            
-            // 2. Tambah jatah penerima
-            $penerima->increment('jatah_tambahan', $request->jumlah_kg);
-
-            // 3. Catat Riwayat/Log
+        DB::transaction(function () use ($pengirim, $penerima, $bibit, $request) {
+            // Catat Riwayat/Log (Tanpa increment/decrement manual di tabel Petani, karena sekarang dihitung dinamis)
             PindahJatah::create([
+                'bibit_id' => $bibit->id,
                 'pengirim_id' => $request->pengirim_id,
                 'penerima_id' => $request->penerima_id,
                 'jumlah_kg' => $request->jumlah_kg,
+                'alasan' => 'Pengalihan oleh Admin'
             ]);
+
+            // Beri notifikasi ke penerima
+            $penerima->user->notify(new SistemNotifikasi(
+                'Jatah Anda Ditambah Admin!', 
+                "Admin telah mengalihkan jatah bibit '{$bibit->nama_bibit}' sebesar {$request->jumlah_kg} Kg kepada Anda.", 
+                'success',
+                url('/dashboard-petani'),
+                $pengirim->id
+            ));
         });
 
-        return back()->with('success', 'Jatah sebesar ' . $request->jumlah_kg . ' kg berhasil dipindahkan!');
+        return back()->with('success', "Jatah {$bibit->nama_bibit} sebesar {$request->jumlah_kg} kg berhasil dialihkan!");
     }
 
     /**
@@ -301,6 +325,92 @@ class AdminController extends Controller
         }
 
         return back()->with('error', 'Pesanan ini sudah diproses sebelumnya.');
+    }
+
+    /**
+     * Menampilkan Halaman Rekap Laporan dengan Statistik Ringkas
+     */
+    public function halamanLaporan()
+    {
+        // Statistik Laporan
+        $totalDanaMasuk = Transaksi::where('status_pembayaran', 'sukses')->sum('total_harga');
+        $totalBibitKeluar = Transaksi::where('status_pembayaran', 'sukses')->sum('jumlah_beli');
+        $totalTransaksiSelesai = Transaksi::where('status_pembayaran', 'sukses')->count();
+        
+        // Ambil data bibit paling laku
+        $terlaris = DB::table('transaksis')
+                    ->join('bibits', 'transaksis.bibit_id', '=', 'bibits.id')
+                    ->select('bibits.nama_bibit', DB::raw('SUM(transaksis.jumlah_beli) as total_kg'))
+                    ->where('transaksis.status_pembayaran', 'sukses')
+                    ->groupBy('bibits.nama_bibit')
+                    ->orderByDesc('total_kg')
+                    ->limit(5)
+                    ->get();
+
+        return view('layouts.admin.laporan', compact('totalDanaMasuk', 'totalBibitKeluar', 'totalTransaksiSelesai', 'terlaris'));
+    }
+
+    /**
+     * Memproses Export Data ke Excel (FastExcel)
+     */
+    public function exportExcel()
+    {
+        $transaksis = Transaksi::with(['petani', 'bibit', 'lahan'])
+                        ->where('status_pembayaran', 'sukses')
+                        ->latest()
+                        ->get();
+
+        $data = $transaksis->map(function ($t) {
+            return [
+                'ID Transaksi' => $t->order_id ?? $t->id,
+                'Tanggal' => $t->created_at->format('d-m-Y'),
+                'Nama Petani' => $t->petani->nama_lengkap ?? '-',
+                'Jenis Bibit' => $t->bibit->nama_bibit ?? '-',
+                'Jumlah (Kg)' => $t->jumlah_beli,
+                'Total Bayar' => $t->total_harga,
+                'Lahan' => $t->lahan->nama_blok ?? '-',
+                'Status' => 'LUNAS'
+            ];
+        });
+
+        return (new \Rap2hpoutre\FastExcel\FastExcel($data))->download('Laporan-Margo-Rahayu-'.date('Y-m-d').'.xlsx');
+    }
+
+    /**
+     * Memproses Export Laporan Data Penjualan ke PDF (DomPDF)
+     */
+    public function exportPdf()
+    {
+        $transaksis = Transaksi::with(['petani', 'bibit', 'lahan'])
+                        ->where('status_pembayaran', 'sukses')
+                        ->latest()
+                        ->get();
+
+        $danaMasuk = $transaksis->sum('total_harga');
+        $totalBibit = $transaksis->sum('jumlah_beli');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('layouts.admin.laporan_pdf', compact('transaksis', 'danaMasuk', 'totalBibit'));
+        
+        // Atur orientasi landscape agar tabel lebar muat
+        $pdf->setPaper('a4', 'landscape');
+        
+        return $pdf->stream('Laporan-Margo-Rahayu-'.date('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Memproses Export Laporan Data Petani ke PDF (DomPDF)
+     */
+    public function cetakPetaniPdf()
+    {
+        $petanis = Petani::with('user')
+                        ->orderByRaw("FIELD(status, 'pending', 'disetujui', 'ditolak')")
+                        ->get();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('layouts.admin.laporan_petani_pdf', compact('petanis'));
+        
+        $pdf->setPaper('a4', 'landscape');
+        
+        return $pdf->stream('Laporan-Data-Petani-'.date('Y-m-d').'.pdf');
     }
 
     /**

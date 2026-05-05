@@ -4,6 +4,27 @@
 
 @section('content')
 <div class="space-y-6">
+    {{-- ALERT STOK KRITIS (Hanya Muncul jika ada stok < 50) --}}
+    @php $stokKritis = \App\Models\Bibit::where('stok', '<', 50)->get(); @endphp
+    @if($stokKritis->count() > 0)
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl shadow-sm animate-pulse">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                <div class="text-sm">
+                    <p class="text-red-800 font-black uppercase tracking-tighter">Peringatan: Stok Bibit Menipis!</p>
+                    <p class="text-red-700 text-xs mt-1">
+                        Segera lakukan pengadaan untuk: 
+                        @foreach($stokKritis as $s)
+                            <span class="font-bold underline">{{ $s->nama_bibit }} (Sisa {{ $s->stok }} Kg)</span>{{ !$loop->last ? ',' : '' }}
+                        @endforeach
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Bagian Statistik --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">

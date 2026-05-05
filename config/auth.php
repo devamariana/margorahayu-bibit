@@ -40,6 +40,21 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+        'superadmin' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+        'petani' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
     ],
 
     /*

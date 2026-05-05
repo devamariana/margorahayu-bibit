@@ -1,6 +1,6 @@
 @extends('layouts.admin_layout')
 
-@section('title', 'Kelola Data Bibit Tanaman')
+@section('title', 'Manajemen Distribusi Bibit')
 
 @section('content')
 <div class="space-y-6">
@@ -15,9 +15,11 @@
         </div>
         
         {{-- Tombol Tambah Bibit --}}
-        <button onclick="openModal('tambah')" class="bg-[#007BFF] hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition duration-300">
-            <i class="fas fa-plus text-sm"></i> Tambah Bibit
-        </button>
+        <div class="flex gap-2">
+            <button onclick="openModal('tambah')" class="bg-[#007BFF] hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition duration-300">
+                <i class="fas fa-truck-loading text-sm"></i> Input Kedatangan Bibit
+            </button>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -31,6 +33,7 @@
                         <th class="p-4 border-b">Jenis/Varietas</th>
                         <th class="p-4 border-b">Stok (Kg)</th>
                         <th class="p-4 border-b">Harga per Kg</th>
+                        <th class="p-4 border-b">Status Distribusi</th>
                         <th class="p-4 border-b text-center">Aksi</th>
                     </tr>
                 </thead>
@@ -47,7 +50,10 @@
                                 @endif
                             </div>
                         </td>
-                        <td class="p-4 font-bold text-gray-800 uppercase bibit-name">{{ $b->nama_bibit }}</td>
+                        <td class="p-4">
+                            <div class="font-bold text-gray-800 uppercase bibit-name">{{ $b->nama_bibit }}</div>
+                            <span class="text-[10px] text-gray-400 font-medium">{{ $b->jenis ?? '-' }}</span>
+                        </td>
                         <td class="p-4 text-gray-600 font-medium">{{ $b->jenis ?? '-' }}</td>
                         <td class="p-4">
                             <span class="px-2 py-1 rounded-full font-bold {{ $b->stok < 10 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600' }}">
@@ -56,14 +62,57 @@
                         </td>
                         <td class="p-4 font-bold text-gray-800">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}</td>
                         <td class="p-4">
+                            @if($b->is_buka)
+                                <div class="space-y-1">
+                                    <span class="bg-green-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">DISTRIBUSI DIBUKA</span>
+                                    <div class="text-[9px] text-gray-400 leading-tight">
+                                        Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/Y H:i') }}<br>
+                                        Ref Luas: {{ number_format($b->total_luas_snapshot, 0, ',', '.') }} m²
+                                    </div>
+                                </div>
+                            @else
+                                <span class="bg-gray-100 text-gray-400 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter border border-gray-200">BELUM DIBUKA</span>
+                            @endif
+                        </td>
+                        <td class="p-4">
                             <div class="flex justify-center gap-2">
+                                @if(!$b->is_buka)
+                                    <form action="{{ route('admin.buka_bibit', $b->id) }}" method="POST">
+                                        @csrf
+                                        <button type="button" onclick="confirmAction(this, 'Buka distribusi bibit ini sekarang? Kuota akan dihitung proporsional berdasarkan data lahan saat ini.', 'question')" 
+                                            class="w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded shadow-sm flex items-center justify-center transition" title="Buka Distribusi">
+                                            <i class="fas fa-bullhorn text-[10px]"></i>
+                                        </button>
+                                    </form>
+                                @else
+                                    <form action="{{ route('admin.tutup_bibit', $b->id) }}" method="POST">
+                                        @csrf
+                                        <button type="button" onclick="confirmAction(this, 'Tutup distribusi bibit ini?', 'warning')" 
+                                            class="w-8 h-8 bg-orange-500 hover:bg-orange-600 text-white rounded shadow-sm flex items-center justify-center transition" title="Tutup Distribusi">
+                                            <i class="fas fa-ban text-[10px]"></i>
+                                        </button>
+                                    </form>
+                                @endif
+
+                                <a href="{{ route('admin.detail_bibit', $b->id) }}" title="Lihat Detail Distribusi" 
+                                   class="w-8 h-8 bg-indigo-500 hover:bg-indigo-600 text-white rounded shadow-sm flex items-center justify-center transition">
+                                    <i class="fas fa-eye text-[10px]"></i>
+                                </a>
 
                                 {{-- Tombol Edit dengan Data Attributes --}}
+                                @if(!$b->is_buka)
                                 <button title="Edit" 
                                     onclick="openModal('edit', {{ json_encode($b) }})"
                                     class="w-8 h-8 bg-[#FFC107] hover:bg-yellow-500 text-white rounded shadow-sm flex items-center justify-center transition">
                                     <i class="fas fa-edit text-[10px]"></i>
                                 </button>
+                                @else
+                                <button title="Tidak bisa diedit saat distribusi aktif" 
+                                    disabled
+                                    class="w-8 h-8 bg-gray-300 text-gray-500 cursor-not-allowed rounded shadow-sm flex items-center justify-center transition">
+                                    <i class="fas fa-edit text-[10px]"></i>
+                                </button>
+                                @endif
                                 
                                 <form action="{{ route('admin.data_bibit.destroy', $b->id) }}" method="POST">
                                     @csrf
@@ -90,7 +139,10 @@
 <div id="modalBibit" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800" id="modalTitle">Tambah Bibit Baru</h3>
+            <div>
+                <h3 class="text-lg font-bold text-gray-800" id="modalTitle">Catat Kedatangan Bibit</h3>
+                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest leading-none">Manajemen Batch Distribusi</p>
+            </div>
             <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
         </div>
         <form id="bibitForm" action="{{ route('admin.store_bibit') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
@@ -98,8 +150,8 @@
             <div id="methodField"></div> {{-- Tempat untuk @method('PUT') saat edit --}}
             
             <div>
-                <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Nama Bibit</label>
-                <input type="text" name="nama_bibit" id="f_nama" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
+                <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Komoditas Bibit / Varietas</label>
+                <input type="text" name="nama_bibit" id="f_nama" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Misal: Padi Unggul Inpari 32" required>
             </div>
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Jenis/Varietas</label>
@@ -111,12 +163,12 @@
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Stok (Kg)</label>
-                    <input type="text" name="stok" id="f_stok" oninput="sanitizeNumber(this)" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
+                    <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Volume Subsidi (Kg)</label>
+                    <input type="text" name="stok" id="f_stok" oninput="sanitizeNumber(this)" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="0" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Harga per Kg</label>
-                    <input type="text" id="f_harga" oninput="formatNominal(this)" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
+                    <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Nilai Tebus / Kg</label>
+                    <input type="text" id="f_harga" oninput="formatNominal(this)" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Rp 0" required>
                     <input type="hidden" name="harga_subsidi" id="f_harga_real">
                 </div>
             </div>
@@ -125,15 +177,15 @@
                 <textarea name="deskripsi" id="f_deskripsi" rows="2" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"></textarea>
             </div>
             <div>
-                <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Foto Bibit (Kosongkan jika tidak ganti)</label>
-                <input type="file" name="gambar" class="w-full text-xs text-gray-500">
+                <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Bukti Foto Fisik Bibit (Kosongkan jika tidak ganti)</label>
+                <input type="file" name="gambar" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition">
             </div>
 
 
             <div class="flex justify-end gap-2 pt-4">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 transition">Batal</button>
                 <button type="submit" class="px-8 py-2 bg-[#2D6A4F] text-white rounded-lg text-sm font-bold shadow-md hover:bg-[#1B4332] transition">
-                    Simpan Data
+                    Rekam Data Masuk
                 </button>
             </div>
         </form>
@@ -153,7 +205,7 @@
         modal.classList.add('flex');
 
         if (mode === 'edit') {
-            title.innerText = 'Edit Data Bibit';
+            title.innerText = 'Koreksi Data Batch Kedatangan';
             form.action = `/admin/data-bibit/update/${data.id}`; // Sesuaikan dengan route update kamu
             methodField.innerHTML = '@method("PUT")';
             
@@ -170,7 +222,7 @@
 
             document.getElementById('f_deskripsi').value = data.deskripsi || '';
         } else {
-            title.innerText = 'Tambah Bibit Baru';
+            title.innerText = 'Catat Kedatangan Bibit';
             form.action = "{{ route('admin.store_bibit') }}";
             methodField.innerHTML = '';
             form.reset();

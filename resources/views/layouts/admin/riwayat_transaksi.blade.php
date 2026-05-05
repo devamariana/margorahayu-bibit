@@ -11,15 +11,33 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-            <select class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] cursor-pointer">
-                <option>Filter Periode</option>
+            <select id="filterPeriode" onchange="filterTransaksi()" class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] cursor-pointer">
+                <option value="">Semua Periode</option>
+                @php
+                    $uniquePeriods = collect($transaksis)->map(function($item) {
+                        return [
+                            'val' => $item->created_at->format('Y-m'),
+                            'label' => $item->created_at->translatedFormat('F Y')
+                        ];
+                    })->unique('val')->sortByDesc('val');
+                @endphp
+                @foreach($uniquePeriods as $p)
+                    <option value="{{ $p['val'] }}">{{ $p['label'] }}</option>
+                @endforeach
             </select>
-            <select class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] cursor-pointer">
-                <option>Filter Status Pembayaran</option>
+
+            <select id="filterStatus" onchange="filterTransaksi()" class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] cursor-pointer">
+                <option value="">Semua Status</option>
+                <option value="menunggu_persetujuan">Menunggu Persetujuan</option>
+                <option value="menunggu_pembayaran">Belum Dibayar</option>
+                <option value="sukses">Lunas</option>
+                <option value="kadaluarsa">Kadaluarsa</option>
+                <option value="ditolak">Ditolak / Batal</option>
             </select>
-            <button class="bg-[#007BFF] hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg shadow-md flex items-center gap-2 transition duration-300 text-xs">
-                <i class="fas fa-print"></i> Cetak Laporan
-            </button>
+
+            <a href="{{ route('admin.export.pdf') }}" target="_blank" class="bg-[#007BFF] hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg shadow-md flex items-center gap-2 transition duration-300 text-xs">
+                <i class="fas fa-print"></i> Cetak Laporan Lunas
+            </a>
         </div>
     </div>
 
@@ -38,7 +56,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($transaksis as $t)
-                    <tr class="hover:bg-gray-50 transition">
+                    <tr class="hover:bg-gray-50 transition transaction-row" data-status="{{ $t->status_pembayaran }}" data-periode="{{ $t->created_at->format('Y-m') }}">
                         <td class="p-4 text-gray-600">{{ $t->created_at->format('Y-m-d H:i') }}</td>
                         <td class="p-4 font-bold text-gray-800 uppercase">{{ $t->petani->nama_lengkap ?? 'Petani Dihapus' }}</td>
                         <td class="p-4 text-gray-600">
@@ -88,4 +106,34 @@
         </div>
     </div>
 </div>
+
+<script>
+function filterTransaksi() {
+    let filterPeriode = document.getElementById("filterPeriode").value;
+    let filterStatus = document.getElementById("filterStatus").value;
+    let rows = document.querySelectorAll("tr.transaction-row");
+
+    rows.forEach(row => {
+        let status = row.getAttribute("data-status");
+        let periode = row.getAttribute("data-periode");
+        
+        let matchesStatus = false;
+        if (filterStatus === "") {
+            matchesStatus = true;
+        } else if (filterStatus === 'menunggu_pembayaran' && (status === 'pending' || status === 'menunggu_pembayaran')) {
+            matchesStatus = true;
+        } else if (status === filterStatus) {
+            matchesStatus = true;
+        }
+
+        let matchesPeriode = (filterPeriode === "" || periode === filterPeriode);
+
+        if (matchesStatus && matchesPeriode) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+    });
+}
+</script>
 @endsection

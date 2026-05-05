@@ -14,11 +14,17 @@ class PindahJatah extends Model
 
     // Kolom yang boleh diisi (Mass Assignment)
     protected $fillable = [
+        'bibit_id',
         'pengirim_id',
         'penerima_id',
         'jumlah_kg',
         'alasan'
     ];
+
+    public function bibit()
+    {
+        return $this->belongsTo(Bibit::class, 'bibit_id');
+    }
 
     /**
      * Relasi: Siapa yang mengirim jatah?

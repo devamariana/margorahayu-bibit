@@ -13,6 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         
+        // --- PENGECUALIAN CSRF ---
+        $middleware->validateCsrfTokens(except: [
+            '/api/midtrans-callback',
+            '/logout',
+        ]);
+
         // --- TAMBAHKAN INI AGAR 'checkRole' DI RECOGNIZED ---
         $middleware->alias([
             'checkRole' => \App\Http\Middleware\CheckRole::class,
@@ -21,13 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Mengarahkan tamu yang tidak terautentikasi kembali ke login
         $middleware->redirectGuestsTo('/login');
 
-        // Mengarahkan user yang SUDAH login agar tidak bisa buka halaman login lagi
-        $middleware->redirectUsersTo(function (Request $request) {
-            if (auth()->user()->role === 'admin') {
-                return route('admin.dashboard');
-            }
-            return route('petani.dashboard');
-        });
+        // Biarkan user bisa buka halaman login meskipun sudah login salah satu role
+        // Agar bisa login role kedua
+        $middleware->redirectUsersTo(fn() => null);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

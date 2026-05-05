@@ -14,42 +14,93 @@ use App\Models\Lahan;
 class PetaniController extends Controller
 {
     /**
-     * Menampilkan Dashboard dengan Notifikasi Bibit Terbaru dan Jatah Bibit
+     * Menampilkan Dashboard dengan Data Lahan & Jatah Bibit (Hanya jika stok ada)
      */
     public function dashboard()
     {
-        $bibitTerbaru = Bibit::latest()->first();
+        // 1. Cek Periode Aktif & Bibit yang SUDAH DIBUKA oleh Admin
+        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
+        $bibitsTerbuka = Bibit::where('is_buka', true)->where('stok', '>', 0)->latest()->get();
+        $bibitsTerbuka = Bibit::where('is_buka', true)->where('stok', '>', 0)->latest()->get();
+        
         $petani = Petani::where('user_id', Auth::id())->first();
 
         if (!$petani) {
             return redirect()->route('login');
         }
 
-        // Ambil semua lahan milik petani ini yang SUDAH DISETUJUI untuk menghitung total jatah
+        // 2. Ambil data lahan
         $lahans = Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->get();
         $totalLuas = $lahans->sum('luas_lahan');
+        $jumlahLahan = $lahans->count();
 
-        // Hitung Jatah Bibit (Berdasarkan akumulasi semua lahan)
-        $jatahBibit = 0;
-        if ($petani->status == 'disetujui') {
-            $jatahDasar = ($totalLuas / 100) * 10;
-            $jatahBibit = $jatahDasar + ($petani->jatah_tambahan ?? 0);
+        // 3. Bangun List Distribusi (Multiple Bibit)
+        $listDistribusi = [];
+        $isPenjualanAktif = false;
+        
+        foreach ($bibitsTerbuka as $bibit) {
+            $tenggat = \Carbon\Carbon::parse($bibit->tanggal_buka)->addDays(7);
+            $sisaHari = (int) now()->diffInDays($tenggat, false);
+            
+            if ($sisaHari < 0) {
+                // Lewat 7 hari, skip dari daftar (otomatis ditutup)
+                continue;
+            }
+            
+            $isPenjualanAktif = true;
+
+            // Perbaikan: Jika sisa hari adalah 0 tapi masih di bawah 24 jam, 
+            // kita bisa tampilkan 1 atau biarkan saja, tapi pastikan ini INTERGER.
+            if ($sisaHari == 0 && now()->lessThan($tenggat)) {
+                $sisaHari = 1;
+            }
+            
+            // Hitung Persentase & Jatah
+            $totalLuasRef = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : 1;
+            $persen = ($totalLuas / $totalLuasRef) * 100;
+            
+            // VALIDASI JATAH (PERBAIKAN: Jatah = Proporsional + Transfer Masuk - Transfer Keluar)
+            $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg') 
+                               - \App\Models\PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+            
+            $jatah = round(max(0, $hakTotal + $tambahanTransfer - $sudahDibeli), 1);
+
+            $listDistribusi[] = [
+                'id' => $bibit->id,
+                'nama' => $bibit->nama_bibit,
+                'jenis' => $bibit->jenis,
+                'stokGudang' => $bibit->stok,
+                'jatah' => $jatah,
+                'isTerbuka' => false,
+                'sisaHari' => $sisaHari,
+                'tanggalBuka' => \Carbon\Carbon::parse($bibit->tanggal_buka)->format('d/m/Y')
+            ];
         }
 
-        // AMBIL DATA RIWAYAT ASLI
+        // 4. Ambil data riwayat
         $riwayat = Transaksi::where('petani_id', $petani->id)
                     ->latest()
                     ->take(3)
                     ->get();
 
-        return view('petani.dashboard', compact('bibitTerbaru', 'petani', 'jatahBibit', 'riwayat', 'totalLuas'));
+        return view('petani.dashboard', compact(
+            'petani', 
+            'riwayat', 
+            'totalLuas', 
+            'jumlahLahan', 
+            'isPenjualanAktif',
+            'periodeAktif',
+            'listDistribusi'
+        ));
     }
 
     public function lahan()
     {
         $petani = Petani::where('user_id', Auth::id())->first();
         
-        $lahans = Lahan::where('petani_id', $petani->id)->get();
+        $lahans = Lahan::with(['transaksi' => function($q) {
+            $q->where('status_pembayaran', 'sukses')->with('bibit');
+        }])->where('petani_id', $petani->id)->get();
         $totalLuas = $lahans->sum('luas_lahan');
         $jumlahLahan = $lahans->count();
         // Ambil dari seluruh data master bibit karena akses sudah dibebaskan (dengan jenis untuk pengelompokan)
@@ -70,7 +121,6 @@ class PetaniController extends Controller
         $request->validate([
             'nama_blok' => 'required|string|max:255',
             'luas_lahan' => 'required|numeric|min:1',
-            'rencana_bibit' => 'required|string',
         ]);
 
         $petani = Petani::where('user_id', Auth::id())->first();
@@ -79,7 +129,7 @@ class PetaniController extends Controller
             'petani_id' => $petani->id,
             'nama_blok' => $request->nama_blok,
             'luas_lahan' => $request->luas_lahan,
-            'rencana_bibit' => $request->rencana_bibit,
+            'rencana_bibit' => '-',
             'jenis_tanah' => $request->jenis_tanah ?? '-',
         ]);
 
@@ -118,17 +168,29 @@ class PetaniController extends Controller
     {
         $petani = Petani::where('user_id', Auth::id())->first();
 
-        // Cek Status Verifikasi
+        // 1. Cek Status Verifikasi
         if ($petani->status !== 'disetujui') {
             return redirect()->route('petani.dashboard')->with('error', 'Akun Anda belum diverifikasi oleh Admin. Anda belum bisa melakukan pembelian bibit.');
         }
 
-        $semuaBibit = Bibit::all(); 
+        // 2. Cek apakah ada stok bibit yang DIBUKA dan belum lewat 7 hari
+        $semuaBibit = Bibit::where('is_buka', true)->where('stok', '>', 0)->get(); 
         
+        $semuaBibit = $semuaBibit->filter(function($bibit) {
+            $tenggat = \Carbon\Carbon::parse($bibit->tanggal_buka)->addDays(7);
+            return now()->lessThanOrEqualTo($tenggat);
+        });
+
+        if ($semuaBibit->isEmpty()) {
+            return redirect()->route('petani.dashboard')->with('error', 'Mohon maaf, saat ini sedang tidak ada distribusi/penjualan bibit yang aktif.');
+        }
+
+        $isJatahTerbuka = false; // Fitur Fase Terbuka sudah dihapus, selamanya false
+
         // PERBAIKAN: Tambahkan pengambilan data lahan agar tidak error di Blade (HANYA YANG DISETUJUI)
         $lahans = Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->get();
         
-        return view('petani.beli_bibit', compact('semuaBibit', 'petani', 'lahans'));
+        return view('petani.beli_bibit', compact('semuaBibit', 'petani', 'lahans', 'isJatahTerbuka'));
     }
 
     /**
@@ -144,6 +206,12 @@ class PetaniController extends Controller
         ]);
 
         $petani = Petani::where('user_id', Auth::id())->first();
+
+        // 0. Safety Check
+        $semuaBibit = Bibit::where('is_buka', true)->where('stok', '>', 0)->get();
+        if ($semuaBibit->isEmpty()) {
+            return back()->with('error', 'Transaksi ditolak. Distribusi penjualan bibit sedang tidak aktif.');
+        }
 
         // Cek kembali status verifikasi untuk mencegah akses nakal
         if ($petani->status !== 'disetujui') {
@@ -162,6 +230,31 @@ class PetaniController extends Controller
             return back()->with('error', 'Stok bibit tidak mencukupi!');
         }
 
+        // VALIDASI JATAH (REVISI RASIONAL): Selamanya proporsional
+        // Hitung kembali jatah hak di sisi server untuk keamanan
+        $totalLuasRef = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : 1;
+        $userArea = Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->sum('luas_lahan');
+        
+        $hakProposional = ($userArea / $totalLuasRef) * $bibit->stok_awal;
+        
+        // Jatah = Hak Proporsional + Transfer Masuk - Transfer Keluar
+        $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg') 
+                           - \App\Models\PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+        
+        $hakTotal = round($hakProposional + $tambahanTransfer, 1);
+        
+        // Cek realisasi sukses sebelumnya
+        $sudahDibeli = Transaksi::where('petani_id', $petani->id)
+                        ->where('bibit_id', $bibit->id)
+                        ->where('status_pembayaran', 'sukses')
+                        ->sum('jumlah_beli');
+        
+        $sisaJatah = max(0, $hakTotal - $sudahDibeli);
+
+        if ($request->jumlah_beli > $sisaJatah) {
+            return back()->with('error', "Transaksi Gagal. Jumlah yang Anda ambil ({$request->jumlah_beli} Kg) melebihi sisa hak jatah Anda ({$sisaJatah} Kg).");
+        }
+
         // Kurangi Stok Bibit
         $bibit->stok -= $request->jumlah_beli;
         $bibit->save();
@@ -169,7 +262,7 @@ class PetaniController extends Controller
         // Buat ID Transaksi Khusus
         $order_id = 'TRX-' . time() . '-' . $petani->id;
 
-        // Buat Transaksi (Status Menunggu Persetujuan Admin)
+        // Buat Transaksi (Langsung Menunggu Pembayaran - Tanpa Konfirmasi Admin)
         $transaksi = Transaksi::create([
             'petani_id' => $petani->id,
             'lahan_id' => $lahan->id,
@@ -177,23 +270,23 @@ class PetaniController extends Controller
             'order_id' => $order_id,
             'jumlah_beli' => $request->jumlah_beli,
             'total_harga' => $request->total_harga,
-            'metode_pembayaran' => '-', // Belum pilih metode
-            'status_pembayaran' => 'menunggu_persetujuan'
+            'metode_pembayaran' => '-', 
+            'status_pembayaran' => 'menunggu_pembayaran'
         ]);
 
-        // Notif Admin Ada Permintaan Beli
+        // Notif Admin Ada Pembelian Baru
         $admins = \App\Models\User::where('role', 'admin')->get();
         foreach ($admins as $admin) {
             $admin->notify(new \App\Notifications\SistemNotifikasi(
-                'Permintaan Pembelian Bibit', 
-                "Petani {$petani->nama_lengkap} meminta {$request->jumlah_beli} qty bibit '{$bibit->nama_bibit}'. Mohon dicek.", 
+                'Pembelian Bibit Baru', 
+                "Petani {$petani->nama_lengkap} telah membeli {$request->jumlah_beli} qty bibit '{$bibit->nama_bibit}'.", 
                 'bibit',
                 url('/admin/riwayat-transaksi'),
                 $transaksi->id
             ));
         }
 
-        return redirect()->route('petani.riwayat')->with('success', 'Permintaan pembelian bibit berhasil dikirim. Silakan tunggu persetujuan dari Admin sebelum melakukan pembayaran.');
+        return redirect()->route('petani.bayar_bibit', $transaksi->id)->with('success', 'Pemesanan berhasil! Silakan selesaikan pembayaran Anda.');
     }
 
     /**
@@ -239,6 +332,7 @@ class PetaniController extends Controller
             \Midtrans\Config::$curlOptions = array(
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_HTTPHEADER => array('X-Dummy: 1')
             );
 
             // Validasi Kunci
@@ -306,33 +400,35 @@ class PetaniController extends Controller
     }
 
     /**
-     * Callback Setelah Selesai Bayar di Midtrans (Hanya Update Status)
+     * Callback Setelah Selesai Bayar di Midtrans (Front-end Redirect)
+     * Verifikasi Asli Akan Dilakukan Oleh Webhook!
      */
     public function suksesBayarBibit($id)
     {
         $petani = Petani::where('user_id', Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
-        // Di sini skenarionya sederhana: user klik 'close' dari snap lalu kita asumsikan sukses (Bisa diganti Webhook ke depannya)
-        if ($transaksi->status_pembayaran == 'menunggu_pembayaran' || $transaksi->status_pembayaran == 'pending') {
-            $transaksi->status_pembayaran = 'sukses';
-            $transaksi->save();
+        // Cek status satu kali lagi untuk memastikan database terupdate segera setelah redirect
+        try {
+            \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+            \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
+            \Midtrans\Config::$curlOptions = [
+                CURLOPT_SSL_VERIFYPEER => false, 
+                CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_HTTPHEADER => []
+            ];
 
-            // Beritahu Admin bahwa pembayaran telah lunas
-            $admins = \App\Models\User::where('role', 'admin')->get();
-            $bibitNama = $transaksi->bibit->nama_bibit ?? 'Bibit';
-            foreach ($admins as $admin) {
-                $admin->notify(new \App\Notifications\SistemNotifikasi(
-                    'Pembayaran Lunas! ✅', 
-                    "Petani {$petani->nama_lengkap} telah melunasi pembayaran untuk bibit '{$bibitNama}' sebesar Rp " . number_format($transaksi->total_harga, 0, ',', '.') . ".", 
-                    'success',
-                    url('/admin/riwayat-transaksi'),
-                    $transaksi->id
-                ));
+            $status = \Midtrans\Transaction::status($transaksi->order_id);
+            if ($status->transaction_status == 'settlement' || $status->transaction_status == 'capture') {
+                $transaksi->status_pembayaran = 'sukses';
+                $transaksi->save();
+                return redirect()->route('petani.riwayat')->with('success', 'Pembayaran Terkonfirmasi! Pesanan Anda telah lunas.');
             }
+        } catch (\Exception $e) {
+            \Log::error('Verification failed on redirect: ' . $e->getMessage());
         }
-
-        return redirect()->route('petani.riwayat')->with('success', 'Pembelian bibit berhasil! Silahkan tunggu pengiriman.');
+        
+        return redirect()->route('petani.riwayat')->with('info', 'Pembayaran sedang diproses. Silakan refresh halaman jika status belum berubah.');
     }
 
     /**
@@ -342,7 +438,52 @@ class PetaniController extends Controller
     {
         $petani = Petani::where('user_id', Auth::id())->first();
         
-        // Ambil riwayat dengan relasi lahan dan bibit (kecuali yang dibatalkan)
+        $riwayatRaw = Transaksi::with(['lahan', 'bibit'])
+                    ->where('petani_id', $petani->id)
+                    ->where('status_pembayaran', '!=', 'batal')
+                    ->latest()
+                    ->get();
+
+        // --- FITUR AUTO-SYNC: Cek Otomatis ke Midtrans & Expired saat Halaman Dibuka ---
+        // Sangat berguna jika Webhook terhambat (Misal: Localhost)
+        foreach ($riwayatRaw as $trx) {
+            if ($trx->status_pembayaran == 'menunggu_pembayaran' || $trx->status_pembayaran == 'pending') {
+                // 1. Cek Expired (7 Hari dari updated_at - saat disetujui/dibuat)
+                $tenggat = $trx->updated_at->addDays(7);
+                if (now()->greaterThan($tenggat)) {
+                    $trx->status_pembayaran = 'kadaluarsa';
+                    $trx->save();
+
+                    // Kembalikan Stok
+                    if ($trx->bibit) {
+                        $trx->bibit->stok += $trx->jumlah_beli;
+                        $trx->bibit->save();
+                    }
+                    continue; // Lanjut ke transaksi berikutnya
+                }
+
+                // 2. Cek Status ke Midtrans
+                try {
+                    \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+                    \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
+                    \Midtrans\Config::$curlOptions = [
+                        CURLOPT_SSL_VERIFYPEER => false,
+                        CURLOPT_SSL_VERIFYHOST => 0,
+                        CURLOPT_HTTPHEADER => [],
+                    ];
+
+                    $status = \Midtrans\Transaction::status($trx->order_id);
+                    if ($status->transaction_status == 'settlement' || $status->transaction_status == 'capture') {
+                        $trx->status_pembayaran = 'sukses';
+                        $trx->save();
+                    }
+                } catch (\Exception $e) {
+                    \Log::info("Lazy sync skipped for {$trx->order_id}: " . $e->getMessage());
+                }
+            }
+        }
+
+        // Ambil data terbaru untuk dikirim ke View (setelah sinkronisasi)
         $riwayat = Transaksi::with(['lahan', 'bibit'])
                     ->where('petani_id', $petani->id)
                     ->where('status_pembayaran', '!=', 'batal')
@@ -350,6 +491,62 @@ class PetaniController extends Controller
                     ->get();
 
         return view('petani.riwayat', compact('riwayat'));
+    }
+
+    /**
+     * Sinkronisasi Manual Status Pembayaran dari Midtrans
+     */
+    public function syncStatus($id)
+    {
+        $petani = Petani::where('user_id', Auth::id())->first();
+        $transaksi = Transaksi::where('id', $id)
+                            ->where('petani_id', $petani->id)
+                            ->firstOrFail();
+
+        try {
+            \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+            \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
+            \Midtrans\Config::$curlOptions = [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_HTTPHEADER => [],
+            ];
+
+            $status = \Midtrans\Transaction::status($transaksi->order_id);
+            
+            if ($status->transaction_status == 'settlement' || $status->transaction_status == 'capture') {
+                $transaksi->status_pembayaran = 'sukses';
+                $transaksi->save();
+                return back()->with('success', 'Status Berhasil Disinkronkan! Pembayaran telah diterima.');
+            } elseif ($status->transaction_status == 'pending') {
+                return back()->with('info', 'Status: Masih Menunggu Pembayaran di Sistem Midtrans.');
+            } else {
+                return back()->with('info', 'Status Midtrans: ' . $status->transaction_status);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal cek status ke Midtrans: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Fitur Cetak Struk/Invoice
+     */
+    public function cetakInvoice($id)
+    {
+        $petani = Petani::where('user_id', Auth::id())->first();
+        
+        $transaksi = Transaksi::with(['lahan', 'bibit'])
+            ->where('id', $id)
+            ->where('petani_id', $petani->id)
+            ->firstOrFail();
+
+        if ($transaksi->status_pembayaran != 'sukses') {
+            return back()->with('error', 'Hanya transaksi sukses yang dapat dicetak.');
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('petani.invoice', compact('transaksi', 'petani'));
+        // Download atau Tampilkan di Browser
+        return $pdf->stream('Invoice-' . $transaksi->order_id . '.pdf');
     }
 
     /**
@@ -421,16 +618,137 @@ class PetaniController extends Controller
     }
 
     /**
-     * Tandai Satu Notifikasi Dibaca dan Redirect
+     * Menampilkan Halaman Transfer Jatah (Fitur Pengalihan)
+     */
+    public function hibahJatah(Request $request)
+    {
+        $petani = Petani::where('user_id', Auth::id())->first();
+        
+        // Cek Keaktifan Penjualan Bibit
+        $bibitsTerbuka = Bibit::where('is_buka', true)->where('stok', '>', 0)->get();
+        if ($bibitsTerbuka->isEmpty()) {
+            return redirect()->route('petani.dashboard')->with('error', 'Fitur transfer jatah hanya tersedia saat distribusi bibit aktif.');
+        }
+
+        // Ambil bibit_id dari request (jika ada pemilihan bibit)
+        $selectedBibitId = $request->input('bibit_id');
+        $sisaJatah = 0;
+        $selectedBibit = null;
+
+        if ($selectedBibitId) {
+            $selectedBibit = Bibit::find($selectedBibitId);
+            if ($selectedBibit && $selectedBibit->is_buka) {
+                // Kalkulasi Sisa Jatah Pengirim untuk bibit yang dipilih
+                $totalLuasRef = $selectedBibit->total_luas_snapshot > 0 ? $selectedBibit->total_luas_snapshot : 1;
+                $userArea = Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->sum('luas_lahan');
+                
+                $hakProposional = ($userArea / $totalLuasRef) * $selectedBibit->stok_awal;
+                
+                $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $selectedBibitId)->sum('jumlah_kg') 
+                                   - \App\Models\PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $selectedBibitId)->sum('jumlah_kg');
+                
+                $hakTotal = $hakProposional + $tambahanTransfer;
+                
+                $sudahDibeli = Transaksi::where('petani_id', $petani->id)
+                                ->where('bibit_id', $selectedBibitId)
+                                ->where('status_pembayaran', 'sukses')
+                                ->sum('jumlah_beli');
+                
+                $sisaJatah = max(0, $hakTotal - $sudahDibeli);
+            }
+        }
+
+        // Ambil Petani Lain (Target Transfer)
+        $petaniLain = Petani::where('id', '!=', $petani->id)->where('status', 'disetujui')->get();
+
+        // Riwayat Transfer Saya
+        $riwayatHibah = \App\Models\PindahJatah::with(['penerima', 'bibit'])
+                        ->where('pengirim_id', $petani->id)
+                        ->latest()
+                        ->get();
+
+        return view('petani.hibah_jatah', compact('petani', 'sisaJatah', 'petaniLain', 'riwayatHibah', 'bibitsTerbuka', 'selectedBibit'));
+    }
+
+    /**
+     * Memproses Transfer Jatah ke Petani Lain
+     */
+    public function prosesHibahJatah(Request $request)
+    {
+        $request->validate([
+            'bibit_id' => 'required|exists:bibits,id',
+            'penerima_id' => 'required|exists:petanis,id',
+            'jumlah_kg' => 'required|numeric|min:0.1',
+            'alasan' => 'nullable|string|max:255',
+        ]);
+
+        $pengirim = Petani::where('user_id', Auth::id())->first();
+        $penerima = Petani::findOrFail($request->penerima_id);
+        $bibit = Bibit::findOrFail($request->bibit_id);
+
+        if ($pengirim->id == $penerima->id) {
+            return back()->with('error', 'Anda tidak bisa mentransfer jatah ke diri sendiri.');
+        }
+
+        // Cek Keaktifan
+        if (!$bibit->is_buka) {
+            return back()->with('error', 'Distribusi untuk bibit ini sudah ditutup.');
+        }
+
+        // Cek Sisa Jatah Stok (Proporsional Dinamis)
+        $totalLuasRef = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : 1;
+        $userArea = Lahan::where('petani_id', $pengirim->id)->where('status', 'disetujui')->sum('luas_lahan');
+        
+        $hakProposional = ($userArea / $totalLuasRef) * $bibit->stok_awal;
+        
+        $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg') 
+                           - \App\Models\PindahJatah::where('pengirim_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+        
+        $hakTotal = $hakProposional + $tambahanTransfer;
+        
+        $sudahDibeli = Transaksi::where('petani_id', $pengirim->id)
+                        ->where('bibit_id', $bibit->id)
+                        ->where('status_pembayaran', 'sukses')
+                        ->sum('jumlah_beli');
+        
+        $sisaJatah = max(0, $hakTotal - $sudahDibeli);
+
+        if ($sisaJatah < $request->jumlah_kg) {
+            return back()->with('error', 'Sisa jatah Anda tidak mencukupi untuk ditransfer.');
+        }
+
+        \App\Models\PindahJatah::create([
+            'bibit_id' => $bibit->id,
+            'pengirim_id' => $pengirim->id,
+            'penerima_id' => $penerima->id,
+            'jumlah_kg' => $request->jumlah_kg,
+            'alasan' => $request->alasan ?? 'Transfer Jatah Sukarela',
+        ]);
+
+        // Beri notifikasi ke penerima
+        $penerima->user->notify(new \App\Notifications\SistemNotifikasi(
+            'Anda Menerima Transfer Jatah!', 
+            "Petani {$pengirim->nama_lengkap} telah mentransfer jatah bibit '{$bibit->nama_bibit}' sebesar {$request->jumlah_kg} Kg kepada Anda.", 
+            'success',
+            url('/dashboard-petani'),
+            $pengirim->id
+        ));
+
+        return redirect()->route('petani.hibah_jatah')->with('success', "Berhasil mentransfer {$request->jumlah_kg} Kg jatah bibit kepada {$penerima->nama_lengkap}.");
+    }
+
+    /**
+     * Membaca satu notifikasi dan mengarahkan ke URL tujuan
      */
     public function bacaDanArahkan($id)
     {
-        $notification = Auth::user()->notifications()->findOrFail($id);
-        $notification->markAsRead();
+        $notification = Auth::user()->notifications()->where('id', $id)->first();
 
-        $url = $notification->data['url'] ?? null;
-
-        if ($url) {
+        if ($notification) {
+            $notification->markAsRead();
+            
+            // Ambil URL dari data notifikasi, jika tidak ada default ke dashboard
+            $url = $notification->data['url'] ?? '/dashboard-petani';
             return redirect($url);
         }
 

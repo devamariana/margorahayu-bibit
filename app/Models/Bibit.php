@@ -22,10 +22,14 @@ class Bibit extends Model
         'jenis', 
         'sumber_pasokan', // TAMBAHKAN INI agar Master Data Masuk tersimpan
         'stok', 
+        'stok_awal',
         'harga_subsidi', 
         'deskripsi', 
         'gambar', 
-        'status'
+        'status',
+        'is_buka',
+        'tanggal_buka',
+        'total_luas_snapshot',
     ];
 
     /**

@@ -38,4 +38,9 @@ class Petani extends Model
                     ->withPivot('kuota_maksimal')
                     ->withTimestamps();
     }
+
+    public function lahans()
+    {
+        return $this->hasMany(Lahan::class, 'petani_id');
+    }
 }
