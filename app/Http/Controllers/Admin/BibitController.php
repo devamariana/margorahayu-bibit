@@ -69,29 +69,16 @@ class BibitController extends Controller
 
         // Kirim Notifikasi via WhatsApp Fonnte ke semua petani yang disetujui
         if (!empty($targetWA)) {
-            $fonnteToken = env('FONNTE_TOKEN', 'uSwGNgmjw2wNtXU8CxmN');
-            if (!empty($fonnteToken) && $fonnteToken != 'your_fonnte_token_here') {
-                try {
-                    $pesanWA = "🌱 *INPO BIBIT BARU* 🌱\n\n"
-                             . "Kabar gembira untuk para petani!\n"
-                             . "Bibit *" . ($request->jenis ? $request->jenis . ' ' : '') . $request->nama_bibit . "* "
-                             . "sekarang sudah tersedia di gudang *Si Margo Rahayu II*.\n\n"
-                             . "💰 Harga Subsidi: *Rp " . number_format($request->harga_subsidi, 0, ',', '.') . "*\n"
-                             . "📦 Stok Tersedia: *" . $request->stok . "*\n\n"
-                             . "Segera cek dan pesan di Aplikasi sekarang sebelum kehabisan!\n"
-                             . url('/login');
+            $pesanWA = "🌱 *INPO BIBIT BARU* 🌱\n\n"
+                     . "Kabar gembira untuk para petani!\n"
+                     . "Bibit *" . ($request->jenis ? $request->jenis . ' ' : '') . $request->nama_bibit . "* "
+                     . "sekarang sudah tersedia di gudang *Si Margo Rahayu II*.\n\n"
+                     . "💰 Harga Subsidi: *Rp " . number_format($request->harga_subsidi, 0, ',', '.') . "*\n"
+                     . "📦 Stok Tersedia: *" . $request->stok . "*\n\n"
+                     . "Segera cek dan pesan di Aplikasi sekarang sebelum kehabisan!\n"
+                     . url('/login');
 
-                    \Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
-                        'Authorization' => $fonnteToken,
-                    ])->post('https://api.fonnte.com/send', [
-                        'target' => implode(',', $targetWA),
-                        'message' => $pesanWA,
-                        'delay' => '2'
-                    ]);
-                } catch (\Exception $e) {
-                    // Biarkan lewat agar tidak mengganggu proses admin jika Fonnte bermasalah
-                }
-            }
+            $this->sendWA(implode(',', $targetWA), $pesanWA);
         }
 
         return redirect()->route('admin.data_bibit')
@@ -188,16 +175,17 @@ class BibitController extends Controller
 
         // Kirim Notifikasi ke semua petani
         $petanis = Petani::with('user')->where('status', 'disetujui')->get();
-        foreach ($petanis as $petani) {
-            if ($petani->user) {
-                // Hitung jatah proporsional petani ini untuk notifikasi
-                $userLuas = DB::table('lahans')
-                    ->where('petani_id', $petani->id)
-                    ->where('status', 'disetujui')
-                    ->sum('luas_lahan');
-                
-                $jatah = $totalLuasLahanRaw > 0 ? ($userLuas / $totalLuasLahanRaw) * $bibit->stok : 0;
+        $targetWA = [];
 
+        foreach ($petanis as $petani) {
+            $userLuas = DB::table('lahans')
+                ->where('petani_id', $petani->id)
+                ->where('status', 'disetujui')
+                ->sum('luas_lahan');
+            
+            $jatah = $totalLuasLahanRaw > 0 ? ($userLuas / $totalLuasLahanRaw) * $bibit->stok : 0;
+
+            if ($petani->user) {
                 $petani->user->notify(new SistemNotifikasi(
                     'Distribusi Bibit Dibuka! 📢', 
                     "Distribusi bibit {$bibit->nama_bibit} telah dibuka. Berdasarkan proporsi lahan, jatah maksimal Anda adalah " . number_format($jatah, 1) . " Kg. Segera ambil dalam 1 minggu!", 
@@ -206,6 +194,23 @@ class BibitController extends Controller
                     $bibit->id
                 ));
             }
+
+            if (!empty($petani->no_hp)) {
+                $targetWA[] = $petani->no_hp;
+            }
+        }
+
+        // Kirim WA Notifikasi Distribusi Dibuka
+        if (!empty($targetWA)) {
+            $pesanWA = "📢 *DISTRIBUSI BIBIT DIBUKA* 📢\n\n"
+                     . "Halo Bapak/Ibu Petani,\n"
+                     . "Distribusi bibit *" . $bibit->nama_bibit . "* resmi dibuka hari ini!\n\n"
+                     . "📍 Segera cek kuota proporsional Anda di aplikasi.\n"
+                     . "⏰ Batas waktu pengambilan khusus adalah *7 hari*.\n\n"
+                     . "Login di sini: " . url('/login') . "\n\n"
+                     . "Terima kasih,\n*Admin Kelompok Tani Margo Rahayu*";
+
+            $this->sendWA(implode(',', $targetWA), $pesanWA);
         }
 
         return back()->with('success', 'Distribusi bibit ' . $bibit->nama_bibit . ' resmi dibuka!');
@@ -257,5 +262,29 @@ class BibitController extends Controller
         // Correction: use standard PHP round
         
         return view('layouts.admin.detail_distribusi', compact('bibit', 'dataDistribusi'));
+    }
+
+    /**
+     * Helper untuk mengirim pesan WhatsApp via Fonnte
+     */
+    private function sendWA($target, $message)
+    {
+        $fonnteToken = env('FONNTE_TOKEN', 'uSwGNgmjw2wNtXU8CxmN');
+        
+        if (empty($fonnteToken) || $fonnteToken == 'your_fonnte_token_here') {
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
+                'Authorization' => $fonnteToken,
+            ])->post('https://api.fonnte.com/send', [
+                'target' => $target,
+                'message' => $message,
+                'delay' => '2'
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Fonnte WA Error: " . $e->getMessage());
+        }
     }
 }
