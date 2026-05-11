@@ -5,14 +5,17 @@
 @section('content')
 <div class="p-8 bg-[#F0F7F2] min-h-screen">
     {{-- Header --}}
-    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 text-center md:text-left">
-        <div>
-            <h1 class="text-3xl font-extrabold text-[#1B4332] tracking-tight text-uppercase">DATA LAHAN PERTANIAN</h1>
-            <p class="text-gray-500 text-sm">Kelola semua aset lahan yang Anda miliki di sini.</p>
+    {{-- HEADER STICKY --}}
+    <div class="sticky top-0 z-20 bg-[#F0F7F2]/95 backdrop-blur-sm pt-2 pb-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
+            <div>
+                <h1 class="text-3xl font-extrabold text-[#1B4332] tracking-tight text-uppercase">DATA LAHAN PERTANIAN</h1>
+                <p class="text-gray-500 text-sm">Kelola semua aset lahan yang Anda miliki di sini.</p>
+            </div>
+            <button onclick="toggleModal()" class="bg-[#2D6A4F] hover:bg-[#1B4332] text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition transform hover:scale-105">
+                <i class="fas fa-plus mr-2"></i> Tambah Lahan Baru
+            </button>
         </div>
-        <button onclick="toggleModal()" class="bg-[#2D6A4F] hover:bg-[#1B4332] text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition transform hover:scale-105">
-            <i class="fas fa-plus mr-2"></i> Tambah Lahan Baru
-        </button>
     </div>
 
     {{-- Alert Success --}}
@@ -36,9 +39,10 @@
 
     {{-- Tabel Daftar Lahan --}}
     <div class="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-50">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="bg-[#2D6A4F] text-white">
+        <div class="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] relative">
+            <table class="w-full text-left border-collapse">
+                <thead class="sticky top-0 z-10 bg-[#2D6A4F]">
+                    <tr class="bg-[#2D6A4F] text-white">
                     <th class="px-6 py-4 text-xs font-bold uppercase">No</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase">Nama/Blok Lahan</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Luas (m²)</th>
@@ -58,7 +62,12 @@
                     <td class="px-6 py-4 text-center font-black text-[#2D6A4F]">{{ $lahan->luas_lahan }}</td>
                     <td class="px-6 py-4 text-center">
                         @php
-                            $bibitDibeli = $lahan->transaksi->where('status_pembayaran', 'sukses')->pluck('bibit.nama_bibit')->unique();
+                            $bibitDibeli = $lahan->transaksi->where('status_pembayaran', 'sukses')
+                                ->filter(function($t) {
+                                    return $t->bibit && $t->bibit->is_buka;
+                                })
+                                ->pluck('bibit.nama_bibit')
+                                ->unique();
                         @endphp
                         
                         @if($bibitDibeli->count() > 0)

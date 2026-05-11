@@ -8,7 +8,6 @@
     {{-- HEADER INFORMASI --}}
     <div class="bg-gradient-to-r from-[#2D6A4F] to-[#1B4332] p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
         <div class="relative z-10">
-            <h2 class="text-2xl font-black mb-2 uppercase tracking-wide">Program Transfer Jatah Bibit</h2>
             <p class="text-green-100 text-sm opacity-90 max-w-2xl">
                 Fitur ini memungkinkan Anda untuk mengalihkan atau mentransfer hak jatah bibit subsidi Anda kepada sesama petani yang lebih membutuhkan.
             </p>
@@ -23,7 +22,7 @@
                 <i class="fas fa-paper-plane text-green-600"></i> Kirim Transfer Baru
             </h3>
             
-            <form action="{{ route('petani.proses_hibah') }}" method="POST" class="space-y-6">
+            <form action="{{ route('petani.proses_transfer') }}" method="POST" class="space-y-6">
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
@@ -107,7 +106,7 @@
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                 <h4 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-4 border-b pb-3">Riwayat Transfer Saya</h4>
                 <div class="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    @forelse($riwayatHibah as $rh)
+                    @forelse($riwayatTransfer as $rh)
                     <div class="flex items-center justify-between gap-3 p-3 rounded-2xl hover:bg-gray-50 transition border border-transparent hover:border-gray-100">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-[10px]">

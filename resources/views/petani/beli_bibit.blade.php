@@ -37,7 +37,7 @@
     {{-- TAMPILAN PRODUK DARI DATABASE --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         @forelse($semuaBibit as $b)
-        <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->stok_awal }}, {{ $b->total_luas_snapshot }}, false, {{ $b->stok }})" 
+        <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->stok_awal }}, {{ $b->total_luas_snapshot }}, false, {{ $b->stok }}, {{ $b->sisa_jatah_global }})" 
              class="bibit-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center hover:border-green-500 hover:shadow-md transition cursor-pointer relative overflow-hidden">
             
             <div class="absolute top-0 right-0 flex flex-col items-end">
@@ -128,7 +128,48 @@
                     </div>
                 </div>
 
-                <p class="text-center text-[10px] text-gray-400 mt-6 italic">Klik tombol di bawah untuk memproses pesanan dan langsung melakukan pembayaran via Midtrans</p>
+                <div class="space-y-4 py-6 border-t border-dashed border-gray-200">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Pilih Metode Pembayaran</label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {{-- Opsi Midtrans --}}
+                        <label class="relative flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-green-500 transition-all group has-[:checked]:border-green-600 has-[:checked]:bg-green-50">
+                            <input type="radio" name="metode_pembayaran" value="midtrans" class="sr-only" checked>
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 group-has-[:checked]:bg-green-600 group-has-[:checked]:text-white">
+                                    <i class="fas fa-credit-card text-xs"></i>
+                                </div>
+                                <span class="font-bold text-sm text-gray-800">Otomatis</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400">VA, QRIS, E-Wallet via Midtrans</p>
+                        </label>
+
+                        {{-- Opsi Transfer Manual --}}
+                        <label class="relative flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-green-500 transition-all group has-[:checked]:border-green-600 has-[:checked]:bg-green-50">
+                            <input type="radio" name="metode_pembayaran" value="transfer_manual" class="sr-only">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 group-has-[:checked]:bg-green-600 group-has-[:checked]:text-white">
+                                    <i class="fas fa-university text-xs"></i>
+                                </div>
+                                <span class="font-bold text-sm text-gray-800">Transfer Manual</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400">Upload bukti transfer bank</p>
+                        </label>
+
+                        {{-- Opsi Tunai (Kasir) --}}
+                        <label class="relative flex flex-col p-4 bg-white border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-green-500 transition-all group has-[:checked]:border-green-600 has-[:checked]:bg-green-50">
+                            <input type="radio" name="metode_pembayaran" value="tunai" class="sr-only">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 group-has-[:checked]:bg-green-600 group-has-[:checked]:text-white">
+                                    <i class="fas fa-money-bill-wave text-xs"></i>
+                                </div>
+                                <span class="font-bold text-sm text-gray-800">Bayar Langsung</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400">Bayar tunai di lokasi (Kasir)</p>
+                        </label>
+                    </div>
+                </div>
+
+                <p class="text-center text-[10px] text-gray-400 mt-6 italic" id="instruksi-bayar">Klik tombol di bawah untuk memproses pesanan dan melakukan pembayaran</p>
 
                 <div class="flex justify-end mt-6">
                     <button type="submit" id="btn-bayar" class="bg-gray-400 text-white font-bold py-4 px-10 rounded-2xl shadow-lg transition duration-300 cursor-not-allowed uppercase tracking-widest text-sm" disabled>
@@ -160,7 +201,7 @@
         document.getElementById('input-jumlah-beli').value = 0;
     }
 
-    function pilihBibit(id, nama, harga, stokAwal = 0, luasRef = 0, isTerbuka = false, currentStok = 0) {
+    function pilihBibit(id, nama, harga, stokAwal = 0, luasRef = 0, isTerbuka = false, currentStok = 0, sisaJatahGlobal = 0) {
         const selectLahan = document.getElementById('pilih-lahan');
         const selectedOption = selectLahan.options[selectLahan.selectedIndex];
         
@@ -178,31 +219,44 @@
         const luasLahan = parseFloat(selectedOption.getAttribute('data-luas'));
         const jatahTambahan = parseFloat(selectedOption.getAttribute('data-tambahan'));
         
-        let hakJatah = 0;
-        
-        // RUMUS PROPORSIONAL: (Luas Lahan / Total Luas Ssnapshot) * Stok Awal
+        // RUMUS PROPORSIONAL LAHAN TERPILIH
         let pembagi = luasRef > 0 ? luasRef : 1;
-        hakJatah = ((luasLahan / pembagi) * stokAwal) + jatahTambahan;
+        let hakLahanIni = ((luasLahan / pembagi) * stokAwal) + jatahTambahan;
         
-        // Pembulatan 1 desimal untuk kemudahan
-        hakJatah = Math.round(hakJatah * 10) / 10;
+        // VALIDASI: Hak Lahan Ini tidak boleh melebihi Sisa Jatah Global (Sisa kuota seluruh lahan)
+        let hakFinal = Math.min(hakLahanIni, sisaJatahGlobal);
+        
+        // Pembulatan
+        hakFinal = Math.round(hakFinal * 10) / 10;
 
-        currentQuota = hakJatah;
+        currentQuota = hakFinal;
 
         // Update Input Hidden & Display
         document.getElementById('input-lahan-id').value = selectedOption.value;
         document.getElementById('input-bibit-id').value = id;
-        document.getElementById('input-jumlah-beli').value = hakJatah;
-        document.getElementById('input-jumlah-beli').max = hakJatah;
+        document.getElementById('input-jumlah-beli').value = hakFinal;
+        document.getElementById('input-jumlah-beli').max = hakFinal;
         
         // Display Info
         document.getElementById('placeholder-text').classList.add('hidden');
         document.getElementById('detail-pesanan').classList.remove('hidden');
         document.getElementById('label-bibit').innerText = 'Bibit ' + nama;
         document.getElementById('info-lahan-terpilih').innerText = selectedOption.text;
-        document.getElementById('berat-estimasi').innerText = hakJatah + ' Kg';
+        document.getElementById('berat-estimasi').innerText = hakFinal + ' Kg';
         document.getElementById('harga-item').innerText = 'Rp ' + harga.toLocaleString('id-ID') + ' /kg';
         
+        // Tambahkan info jika jatah sudah habis
+        if (sisaJatahGlobal <= 0) {
+             Swal.fire({
+                icon: 'info',
+                title: 'Jatah Sudah Habis',
+                text: 'Anda sudah mengambil seluruh jatah untuk varietas bibit ini di transaksi sebelumnya.',
+                confirmButtonColor: '#2D6A4F'
+            });
+            resetPilihanBibit();
+            return;
+        }
+
         // Efek visual pada card
         document.querySelectorAll('.bibit-card').forEach(card => {
             card.classList.remove('border-green-500', 'ring-2', 'ring-green-200');

@@ -10,9 +10,17 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Petani;
 use App\Notifications\SistemNotifikasi;
 
+use App\Traits\WhatsappNotifier;
+
 class BibitController extends Controller
 {
+    use WhatsappNotifier;
     public function index() {
+        // FITUR OTOMATIS: Jika distribusi sudah lewat 7 hari, otomatis tutup statusnya di database
+        Bibit::where('is_buka', true)
+             ->where('tanggal_buka', '<=', now()->subDays(7))
+             ->update(['is_buka' => false]);
+
         $bibits = Bibit::all();
         return view('layouts.admin.data_bibit', compact('bibits'));
     }
@@ -123,8 +131,24 @@ class BibitController extends Controller
             $data['gambar'] = $namaFile;
         }
 
-        $data['status'] = $request->stok > 0 ? 'tersedia' : 'habis';
+        $oldStok = $bibit->stok;
         $bibit->update($data);
+
+        // Jika stok bertambah, kirim notifikasi WA "Stok Masuk"
+        if ($request->stok > $oldStok) {
+            $petanis = Petani::where('status', 'disetujui')->whereNotNull('no_hp')->get();
+            $targetWA = $petanis->pluck('no_hp')->implode(',');
+
+            if (!empty($targetWA)) {
+                $pesanWA = "♻️ *UPDATE STOK BIBIT* ♻️\n\n"
+                         . "Stok tambahan untuk bibit *" . $bibit->nama_bibit . "* telah masuk!\n"
+                         . "Total stok sekarang: *" . $request->stok . " Kg*\n\n"
+                         . "Silakan cek jatah Anda dan lakukan pemesanan di aplikasi.\n"
+                         . url('/login');
+
+                $this->sendWA($targetWA, $pesanWA);
+            }
+        }
 
         return redirect()->route('admin.data_bibit')->with('success', 'Data Master Bibit berhasil diperbarui!');
     }
@@ -237,9 +261,20 @@ class BibitController extends Controller
             $userLuas = $p->lahans->where('status', 'disetujui')->sum('luas_lahan');
             $pembagi = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : 1;
             
-            // Hitung Jatah Hak
-            $hak = (($userLuas / $pembagi) * $bibit->stok_awal) + ($p->jatah_tambahan ?? 0);
-            $hak = round($hak, 1);
+            // Hitung Jatah Hak (Proporsional)
+            $hakProposional = ($userLuas / $pembagi) * $bibit->stok_awal;
+            
+            // Hitung Tambahan dari Transfer Jatah (PindahJatah)
+            $tambahanTransfer = \DB::table('pindah_jatahs')
+                                ->where('bibit_id', $bibit->id)
+                                ->where('penerima_id', $p->id)
+                                ->sum('jumlah_kg')
+                                - \DB::table('pindah_jatahs')
+                                ->where('bibit_id', $bibit->id)
+                                ->where('pengirim_id', $p->id)
+                                ->sum('jumlah_kg');
+            
+            $hak = round($hakProposional + $tambahanTransfer, 1);
             
             // Cari Realisasi (Berapa yang sudah diambil/dibayar)
             $diambil = DB::table('transaksis')
@@ -262,29 +297,5 @@ class BibitController extends Controller
         // Correction: use standard PHP round
         
         return view('layouts.admin.detail_distribusi', compact('bibit', 'dataDistribusi'));
-    }
-
-    /**
-     * Helper untuk mengirim pesan WhatsApp via Fonnte
-     */
-    private function sendWA($target, $message)
-    {
-        $fonnteToken = env('FONNTE_TOKEN', 'uSwGNgmjw2wNtXU8CxmN');
-        
-        if (empty($fonnteToken) || $fonnteToken == 'your_fonnte_token_here') {
-            return;
-        }
-
-        try {
-            \Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
-                'Authorization' => $fonnteToken,
-            ])->post('https://api.fonnte.com/send', [
-                'target' => $target,
-                'message' => $message,
-                'delay' => '2'
-            ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Fonnte WA Error: " . $e->getMessage());
-        }
     }
 }

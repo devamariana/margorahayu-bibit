@@ -24,9 +24,9 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto max-h-[600px] relative">
             <table class="w-full text-left border-collapse">
-                <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider">
+                <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">No</th>
                         <th class="p-4 border-b">Tahun</th>

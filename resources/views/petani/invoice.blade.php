@@ -20,7 +20,7 @@
 <body>
     <div class="header">
         <div class="logo">MARGO RAHAYU II</div>
-        <div class="title">Tanda Terima Pembayaran</div>
+        <div class="title">{{ $transaksi->status_pembayaran == 'sukses' ? 'Tanda Terima Pembayaran' : 'Bukti Pemesanan Bibit' }}</div>
     </div>
     
     <table class="info-box">
@@ -34,8 +34,8 @@
             <td width="50%" style="text-align: right;">
                 <strong>Detail Transaksi:</strong><br>
                 #{{ $transaksi->order_id }}<br>
-                {{ $transaksi->updated_at->format('d F Y, H:i') }} WIB<br>
-                <strong>Status: LUNAS</strong>
+                {{ $transaksi->created_at->format('d F Y, H:i') }} WIB<br>
+                <strong>Status: {{ $transaksi->status_pembayaran == 'sukses' ? 'LUNAS' : strtoupper(str_replace('_', ' ', $transaksi->status_pembayaran)) }}</strong>
             </td>
         </tr>
     </table>

@@ -22,9 +22,9 @@
             <h3 class="text-sm font-bold text-gray-700">Daftar Admin Aktif</h3>
             <a href="{{ route('superadmin.data_admin') }}" class="text-xs font-bold text-[#2D6A4F] hover:underline">Kelola Semua &rarr;</a>
         </div>
-        <div class="overflow-x-auto text-xs">
+        <div class="overflow-x-auto overflow-y-auto max-h-[400px] text-xs relative">
             <table class="w-full text-left">
-                <thead class="bg-gray-50 text-gray-500 uppercase font-bold">
+                <thead class="bg-gray-50 text-gray-500 uppercase font-bold sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">Username</th>
                         <th class="p-4 border-b">Dibuat Pada</th>

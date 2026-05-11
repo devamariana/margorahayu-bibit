@@ -4,17 +4,17 @@
 
 @section('content')
 <div class="space-y-6">
-    {{-- ALERT STOK KRITIS (Hanya Muncul jika ada stok < 50) --}}
-    @php $stokKritis = \App\Models\Bibit::where('stok', '<', 50)->get(); @endphp
+    {{-- ALERT STOK KRITIS (Hanya Muncul jika ada stok aktif < 50) --}}
+    @php $stokKritis = \App\Models\Bibit::where('is_buka', true)->where('stok', '<', 50)->get(); @endphp
     @if($stokKritis->count() > 0)
     <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl shadow-sm animate-pulse">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
                 <div class="text-sm">
-                    <p class="text-red-800 font-black uppercase tracking-tighter">Peringatan: Stok Bibit Menipis!</p>
+                    <p class="text-red-800 font-black uppercase tracking-tighter">Peringatan: Stok Bibit Aktif Menipis!</p>
                     <p class="text-red-700 text-xs mt-1">
-                        Segera lakukan pengadaan untuk: 
+                        Segera cek distribusi untuk: 
                         @foreach($stokKritis as $s)
                             <span class="font-bold underline">{{ $s->nama_bibit }} (Sisa {{ $s->stok }} Kg)</span>{{ !$loop->last ? ',' : '' }}
                         @endforeach
@@ -33,7 +33,7 @@
             <p class="text-3xl font-bold text-gray-800 tracking-tight">{{ $totalPetani }}</p>
         </div>
         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
-            <p class="text-gray-500 text-xs font-bold uppercase mb-2">Stok Bibit</p>
+            <p class="text-gray-500 text-xs font-bold uppercase mb-2">Stok Bibit Aktif</p>
             {{-- DATA ASLI DARI DATABASE --}}
             <p class="text-3xl font-bold text-gray-800 tracking-tight">{{ number_format($totalStok) }} kg</p>
         </div>
@@ -65,9 +65,9 @@
         <div class="p-4 bg-gray-50 border-b border-gray-100">
             <h3 class="text-sm font-bold text-gray-700">Petani Baru Terdaftar (Panel Admin)</h3>
         </div>
-        <div class="overflow-x-auto text-xs">
+        <div class="overflow-x-auto overflow-y-auto max-h-[400px] text-xs relative">
             <table class="w-full text-left">
-                <thead class="bg-gray-50 text-gray-500 uppercase font-bold">
+                <thead class="bg-gray-50 text-gray-500 uppercase font-bold sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">Tanggal Daftar</th>
                         <th class="p-4 border-b">Nama Petani</th>

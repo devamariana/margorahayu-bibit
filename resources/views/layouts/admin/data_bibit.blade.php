@@ -6,26 +6,52 @@
 <div class="space-y-6">
     {{-- Notifikasi via Layout (Global) --}}
 
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+    {{-- ROW 1: STATISTIK RINGKAS --}}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shadow-sm">
+                <i class="fas fa-check-circle text-xl"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Aktif</p>
+                <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', true)->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 shadow-sm">
+                <i class="fas fa-archive text-xl"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Sisa (Tutup)</p>
+                <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', false)->whereNotNull('tanggal_buka')->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
+            </div>
+        </div>
+        {{-- Spacer atau Info Tambahan bisa di sini --}}
+        <div class="md:col-span-2"></div>
+    </div>
+
+    {{-- ROW 2: ACTIONS --}}
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
         {{-- Fitur Cari --}}
-        <div class="relative w-full md:w-80">
+        <div class="relative w-full md:w-96">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                <i class="fas fa-search text-sm"></i>
+            </div>
             <input type="text" id="searchInput" onkeyup="searchTable()"
-                   placeholder="Cari nama bibit..." 
-                   class="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm bg-white">
+                   placeholder="Cari berdasarkan nama bibit..." 
+                   class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] focus:border-transparent focus:outline-none shadow-sm transition-all text-sm">
         </div>
         
         {{-- Tombol Tambah Bibit --}}
-        <div class="flex gap-2">
-            <button onclick="openModal('tambah')" class="bg-[#007BFF] hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition duration-300">
-                <i class="fas fa-truck-loading text-sm"></i> Input Kedatangan Bibit
-            </button>
-        </div>
+        <button onclick="openModal('tambah')" class="w-full md:w-auto bg-[#007BFF] hover:bg-blue-700 text-white font-black py-3 px-8 rounded-xl shadow-lg shadow-blue-100 flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 uppercase tracking-widest text-xs">
+            <i class="fas fa-truck-loading"></i> Input Kedatangan Bibit
+        </button>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto text-xs">
+        <div class="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] text-xs relative">
             <table class="w-full text-left border-collapse" id="bibitTable">
-                <thead class="bg-gray-50 text-gray-500 font-bold">
+                <thead class="bg-gray-50 text-gray-500 font-bold sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">No</th>
                         <th class="p-4 border-b">Foto Bibit</th>
@@ -67,11 +93,23 @@
                                     <span class="bg-green-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">DISTRIBUSI DIBUKA</span>
                                     <div class="text-[9px] text-gray-400 leading-tight">
                                         Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/Y H:i') }}<br>
+                                        Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/Y H:i') }}<br>
                                         Ref Luas: {{ number_format($b->total_luas_snapshot, 0, ',', '.') }} m²
                                     </div>
                                 </div>
                             @else
-                                <span class="bg-gray-100 text-gray-400 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter border border-gray-200">BELUM DIBUKA</span>
+                                @if($b->tanggal_buka)
+                                    <div class="space-y-1">
+                                        <span class="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">DISTRIBUSI SELESAI</span>
+                                        <div class="text-[9px] text-gray-400 leading-tight">
+                                            Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/Y H:i') }}<br>
+                                            Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/Y H:i') }}<br>
+                                            <span class="italic opacity-75 font-bold text-red-400">Otomatis ditutup</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="bg-gray-100 text-gray-400 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter border border-gray-200">BELUM DIBUKA</span>
+                                @endif
                             @endif
                         </td>
                         <td class="p-4">

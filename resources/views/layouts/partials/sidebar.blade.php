@@ -41,8 +41,8 @@
             <i class="fas fa-history mr-3 group-hover:scale-110 transition"></i> Riwayat Pembelian
         </a>
 
-        <a href="{{ route('petani.hibah_jatah') }}" 
-           class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('petani.hibah_jatah') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
+        <a href="{{ route('petani.transfer_jatah') }}" 
+           class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('petani.transfer_jatah') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
             <i class="fas fa-exchange-alt mr-3 group-hover:scale-110 transition"></i> Transfer Jatah
         </a>
     </nav>

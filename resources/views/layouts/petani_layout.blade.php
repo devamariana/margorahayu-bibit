@@ -15,6 +15,32 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+
+        /* CUSTOM SCROLLBAR GLOBAL - Agar tidak "jelek" dan merusak tampilan */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* slate-300 */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* slate-400 */
+        }
+
+        /* Khusus untuk area konten utama agar scrollbar tetap rapi */
+        .main-content-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+        
+        /* Hilangkan horizontal scrollbar pada body jika tidak perlu */
+        body {
+            overflow-x: hidden;
+        }
     </style>
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -184,7 +210,7 @@
                 @endif
             </script>
 
-            <main class="flex-1 overflow-x-hidden overflow-y-auto p-6 md:p-8 fade-in">
+            <main class="flex-1 overflow-y-auto p-6 md:p-8 fade-in">
                 {{-- Konten dari dashboard atau profil akan muncul di sini --}}
                 @yield('content')
             </main>

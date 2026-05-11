@@ -32,8 +32,8 @@
             <i class="fas fa-seedling mr-3 group-hover:scale-110 transition"></i> Data Bibit
         </a>
         {{-- REVISI: Menu Pengalihan Jatah --}}
-        <a href="{{ route('admin.pindah_jatah') }}" 
-            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.pindah_jatah') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-orange-100 hover:bg-[#40916C]' }} border border-dashed border-orange-300/30">
+        <a href="{{ route('admin.transfer_jatah') }}" 
+            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.transfer_jatah') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-orange-100 hover:bg-[#40916C]' }} border border-dashed border-orange-300/30">
             <i class="fas fa-exchange-alt mr-3 group-hover:scale-110 transition duration-500"></i> Pengalihan Jatah
         </a>
         <div class="py-2 border-t border-[#40916C]/30 my-2"></div>

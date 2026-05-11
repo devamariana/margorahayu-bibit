@@ -32,6 +32,12 @@
         </div>
     @endif
 
+    <div class="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
+        <div class="text-center md:text-left">
+            <p class="text-gray-500 text-sm font-medium">Lengkapi dan perbarui informasi akun Anda secara berkala.</p>
+        </div>
+    </div>
+    
     {{-- Form Simpan Data --}}
     <form action="{{ route('petani.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
         @csrf

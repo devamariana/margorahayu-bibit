@@ -39,9 +39,9 @@
             </button>
         </div>
 
-        <div class="overflow-x-auto text-xs p-4">
+        <div class="overflow-x-auto overflow-y-auto max-h-[500px] text-xs p-4 relative">
             <table class="w-full text-left">
-                <thead class="bg-gray-50 text-gray-500 uppercase font-bold">
+                <thead class="bg-gray-50 text-gray-500 uppercase font-bold sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">ID</th>
                         <th class="p-4 border-b">Username</th>

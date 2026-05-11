@@ -105,9 +105,9 @@
         <div class="p-4 border-b border-gray-100 bg-gray-50">
             <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">3 Riwayat Terakhir</h3>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto max-h-[300px] relative">
             <table class="w-full text-left">
-                <thead class="bg-white text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                <thead class="bg-white text-gray-400 text-[10px] font-bold uppercase tracking-widest sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">Tanggal</th>
                         <th class="p-4 border-b">Komoditas</th>

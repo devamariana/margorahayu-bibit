@@ -20,7 +20,6 @@ class Lahan extends Model
         'petani_id',
         'nama_blok',
         'luas_lahan',
-        'rencana_bibit',
         'jenis_tanah',
         'lokasi',
         'status',

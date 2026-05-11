@@ -36,9 +36,9 @@
 
     {{-- TABEL TRANSPARANSI --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto max-h-[500px] relative">
             <table class="w-full text-left text-xs">
-                <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-tighter">
+                <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-tighter sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">Nama Petani</th>
                         <th class="p-4 border-b">Luas Lahan (m²)</th>

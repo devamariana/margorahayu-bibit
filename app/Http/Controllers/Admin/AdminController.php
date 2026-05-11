@@ -14,21 +14,29 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Notifications\SistemNotifikasi;
 
+use App\Traits\WhatsappNotifier;
+
 class AdminController extends Controller
 {
+    use WhatsappNotifier;
     /**
      * Menampilkan Dashboard Utama Admin dengan data asli
      */
     public function index()
     {
+        // SYNC STATUS BIBIT: Jika sudah lewat 7 hari, pastikan ditutup di DB
+        \App\Models\Bibit::where('is_buka', true)
+             ->where('tanggal_buka', '<=', now()->subDays(7))
+             ->update(['is_buka' => false]);
+
         // 1. Menghitung total semua petani di tabel petanis
         $totalPetani = Petani::count();
 
         // 2. Menghitung petani yang statusnya masih 'pending' (butuh verifikasi)
         $totalPending = Petani::where('status', 'pending')->count();
 
-        // 3. Menghitung total stok bibit dari semua jenis bibit yang ada
-        $totalStok = Bibit::sum('stok');
+        // 3. Menghitung total stok bibit yang sedang AKTIF didistribusikan
+        $totalStok = Bibit::where('is_buka', true)->sum('stok');
 
         // 4. Mengambil 5 data petani terbaru untuk ditampilkan di tabel dashboard
         $petaniTerbaru = Petani::with('user')->latest()->take(5)->get();
@@ -106,6 +114,14 @@ class AdminController extends Controller
             ));
         }
 
+        // WhatsApp Notification
+        if (!empty($petani->no_hp)) {
+            $pesanWA = $request->status == 'disetujui' 
+                ? "✅ *AKUN DIVERIFIKASI*\n\nHalo {$petani->nama_lengkap},\nSelamat! Akun Anda telah berhasil diverifikasi oleh Admin. Silakan lengkapi profil Anda dan mulai belanja bibit." 
+                : "❌ *AKUN DITOLAK*\n\nHalo {$petani->nama_lengkap},\nMohon maaf, pengajuan akun Anda ditolak. Silakan periksa kembali data Anda atau hubungi Admin.";
+            $this->sendWA($petani->no_hp, $pesanWA);
+        }
+
         return back()->with('success', 'Status petani ' . $petani->nama_lengkap . ' berhasil diperbarui menjadi ' . $petani->status);
     }
 
@@ -145,7 +161,7 @@ class AdminController extends Controller
         // Ambil bibit yang sedang aktif
         $bibitsAktif = Bibit::where('is_buka', true)->get();
         
-        return view('layouts.admin.pindah_jatah', compact('petanis', 'riwayatPindah', 'bibitsAktif'));
+        return view('layouts.admin.transfer_jatah', compact('petanis', 'riwayatPindah', 'bibitsAktif'));
     }
 
     /**
@@ -210,6 +226,12 @@ class AdminController extends Controller
                 url('/dashboard-petani'),
                 $pengirim->id
             ));
+
+            // WhatsApp Notification to Receiver
+            if (!empty($penerima->no_hp)) {
+                $pesanWA = "📩 *TRANSFER JATAH BIBIT*\n\nHalo {$penerima->nama_lengkap},\nAdmin telah mengalihkan jatah bibit *{$bibit->nama_bibit}* sebesar *{$request->jumlah_kg} Kg* kepada Anda.\n\nCek jatah Anda di aplikasi sekarang!";
+                $this->sendWA($penerima->no_hp, $pesanWA);
+            }
         });
 
         return back()->with('success', "Jatah {$bibit->nama_bibit} sebesar {$request->jumlah_kg} kg berhasil dialihkan!");
@@ -229,7 +251,7 @@ class AdminController extends Controller
      */
     public function dataLahan()
     {
-        $lahans = Lahan::with('petani')->latest()->get();
+        $lahans = Lahan::with(['petani', 'transaksi.bibit'])->latest()->get();
         return view('layouts.admin.data_lahan', compact('lahans'));
     }
 
@@ -267,6 +289,14 @@ class AdminController extends Controller
             ));
         }
 
+        // WhatsApp Notification
+        if ($petani && !empty($petani->no_hp)) {
+            $pesanWA = $request->status == 'disetujui' 
+                ? "✅ *LAHAN DISETUJUI*\n\nHalo {$petani->nama_lengkap},\nData Lahan Anda di *{$lahan->nama_blok}* dengan luas {$lahan->luas_lahan} m2 telah disetujui Admin." 
+                : "❌ *LAHAN DITOLAK*\n\nHalo {$petani->nama_lengkap},\nMohon maaf, pengajuan data lahan Anda di *{$lahan->nama_blok}* ditolak Admin.";
+            $this->sendWA($petani->no_hp, $pesanWA);
+        }
+
         return back()->with('success', 'Status Lahan berhasil diperbarui menjadi ' . ucfirst($request->status));
     }
 
@@ -276,55 +306,66 @@ class AdminController extends Controller
     public function verifikasiTransaksi(Request $request, $id)
     {
         $request->validate([
-            'status_pembayaran' => 'required|in:menunggu_pembayaran,ditolak'
+            'status_pembayaran' => 'required|in:sukses,ditolak,menunggu_pembayaran'
         ]);
 
         $transaksi = Transaksi::findOrFail($id);
 
-        // Hanya proses jika status masih menunggu persetujuan
-        if ($transaksi->status_pembayaran == 'menunggu_persetujuan') {
-            $transaksi->status_pembayaran = $request->status_pembayaran;
-            
-            if ($request->status_pembayaran == 'ditolak') {
-                // Kembalikan stok bibit jika pesanan ditolak
-                $bibit = $transaksi->bibit;
-                $bibit->stok += $transaksi->jumlah_beli;
-                $bibit->save();
-            }
-            
-            // updated_at akan otomatis terupdate, yang akan jadi acuan 1 minggu pembayaran
+        // Jika disetujui (Sukses)
+        if ($request->status_pembayaran == 'sukses') {
+            $transaksi->status_pembayaran = 'sukses';
             $transaksi->save();
 
-            // Tandai notifikasi terkait transaksi ini sebagai dibaca (untuk admin)
-            Auth::user()->unreadNotifications()
-                ->where('data->id_terkait', $transaksi->id)
-                ->get()->markAsRead();
-
-            // Beri Notifikasi ke User soal Transaksinya
+            // Beri Notifikasi ke User
             $petani = $transaksi->petani;
             if ($petani && $petani->user) {
                 $bibitNama = $transaksi->bibit->nama_bibit ?? 'Bibit';
-                $pesanNotif = $request->status_pembayaran == 'menunggu_pembayaran' 
-                    ? "Permintaan Anda untuk {$bibitNama} telah disetujui! Segera lakukan pembayaran sebelum 7 hari dari sekarang." 
-                    : "Maaf, permintaan pembelian bibit {$bibitNama} Anda ditolak Admin.";
-                
                 $petani->user->notify(new SistemNotifikasi(
-                    'Pesan Pembelian Bibit', 
-                    $pesanNotif, 
-                    $request->status_pembayaran == 'menunggu_pembayaran' ? 'info' : 'warning',
+                    'Pembayaran Berhasil!', 
+                    "Pembayaran {$bibitNama} Anda telah diverifikasi oleh Admin. Silakan ambil bibit di lokasi.", 
+                    'success',
+                    url('/riwayat-pembelian'),
+                    $transaksi->id
+                ));
+
+                // WA Notif
+                if (!empty($petani->no_hp)) {
+                    $pesanWA = "✅ *PEMBAYARAN DIVERIFIKASI*\n\nHalo {$petani->nama_lengkap},\nPembayaran pesanan *{$transaksi->order_id}* telah diverifikasi Admin.\n\nDetail:\n- Bibit: {$bibitNama}\n- Jumlah: {$transaksi->jumlah_beli} Kg\n\nSilakan ambil bibit Anda di lokasi Kelompok Tani.";
+                    $this->sendWA($petani->no_hp, $pesanWA);
+                }
+            }
+
+            return back()->with('success', 'Transaksi berhasil diverifikasi sebagai LUNAS.');
+        }
+
+        // Jika Ditolak
+        if ($request->status_pembayaran == 'ditolak') {
+            $transaksi->status_pembayaran = 'ditolak';
+            $transaksi->catatan_admin = $request->catatan ?? 'Bukti pembayaran tidak valid.';
+            
+            // Kembalikan stok bibit
+            $bibit = $transaksi->bibit;
+            $bibit->stok += $transaksi->jumlah_beli;
+            $bibit->save();
+            
+            $transaksi->save();
+
+            // Notif Petani
+            $petani = $transaksi->petani;
+            if ($petani && $petani->user) {
+                $petani->user->notify(new SistemNotifikasi(
+                    'Pembayaran Ditolak', 
+                    "Maaf, bukti pembayaran untuk pesanan {$transaksi->order_id} ditolak Admin. Alasan: {$transaksi->catatan_admin}", 
+                    'warning',
                     url('/riwayat-pembelian'),
                     $transaksi->id
                 ));
             }
 
-            $pesan = $request->status_pembayaran == 'menunggu_pembayaran' 
-                        ? 'Pesanan disetujui, Petani sekarang bisa melakukan pembayaran.' 
-                        : 'Pesanan ditolak, stok bibit telah dikembalikan.';
-            
-            return back()->with('success', $pesan);
+            return back()->with('warning', 'Transaksi telah ditolak dan stok dikembalikan.');
         }
 
-        return back()->with('error', 'Pesanan ini sudah diproses sebelumnya.');
+        return back()->with('error', 'Aksi tidak valid.');
     }
 
     /**

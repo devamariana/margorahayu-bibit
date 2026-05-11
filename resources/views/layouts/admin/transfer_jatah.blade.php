@@ -5,7 +5,7 @@
 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 class="text-lg font-bold mb-4">Input Pengalihan Jatah</h3>
-        <form id="pindahForm" action="{{ route('admin.proses_pindah') }}" method="POST">
+        <form id="pindahForm" action="{{ route('admin.proses_transfer') }}" method="POST">
             @csrf
             <div class="space-y-5">
                 <div class="space-y-1.5">
@@ -63,9 +63,9 @@
 
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 class="text-lg font-bold mb-4">Riwayat Pengalihan</h3>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto max-h-[400px] relative">
             <table class="w-full text-sm text-left">
-                <thead>
+                <thead class="sticky top-0 z-10">
                     <tr class="bg-gray-50">
                         <th class="p-2">Bibit</th>
                         <th class="p-2">Pengirim</th>

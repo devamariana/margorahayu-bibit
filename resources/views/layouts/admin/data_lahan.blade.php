@@ -15,15 +15,15 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto text-xs">
+        <div class="overflow-x-auto overflow-y-auto max-h-[600px] text-xs relative">
             <table class="w-full text-left border-collapse">
-                <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider">
+                <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">No</th>
                         <th class="p-4 border-b">Nama Pemilik</th>
                         <th class="p-4 border-b">Lokasi/Blok Lahan</th>
                         <th class="p-4 border-b">Luas Lahan (m²)</th>
-                        <th class="p-4 border-b">Rencana Bibit</th>
+                        <th class="p-4 border-b">Bibit yang Dibeli</th>
                         <th class="p-4 border-b">Status</th>
                         <th class="p-4 border-b text-center">Aksi</th>
                     </tr>
@@ -35,7 +35,26 @@
                         <td class="p-4 font-bold text-gray-800">{{ $l->petani->nama_lengkap ?? 'Petani Dihapus' }}</td>
                         <td class="p-4 text-gray-600 uppercase">{{ $l->nama_blok }}</td>
                         <td class="p-4 font-medium text-gray-700">{{ $l->luas_lahan }} m²</td>
-                        <td class="p-4 text-gray-600 font-bold">{{ $l->rencana_bibit }}</td>
+                        <td class="p-4">
+                            @php
+                                $bibitDibeli = $l->transaksi->where('status_pembayaran', 'sukses')
+                                    ->filter(function($t) {
+                                        return $t->bibit && $t->bibit->is_buka;
+                                    })
+                                    ->pluck('bibit.nama_bibit')
+                                    ->unique();
+                            @endphp
+                            
+                            @if($bibitDibeli->count() > 0)
+                                @foreach($bibitDibeli as $namaBibit)
+                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[9px] font-bold uppercase inline-block m-0.5">
+                                        {{ $namaBibit }}
+                                    </span>
+                                @endforeach
+                            @else
+                                <span class="text-[10px] text-gray-400 italic">Belum ada pembelian</span>
+                            @endif
+                        </td>
                         <td class="p-4">
                             @if($l->status == 'disetujui')
                                 <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-[10px] font-bold">DISETUJUI</span>
