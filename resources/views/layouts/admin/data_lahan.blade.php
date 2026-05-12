@@ -23,6 +23,7 @@
                         <th class="p-4 border-b">Nama Pemilik</th>
                         <th class="p-4 border-b">Lokasi/Blok Lahan</th>
                         <th class="p-4 border-b">Luas Lahan (m²)</th>
+                        <th class="p-4 border-b">Rencana Bibit</th>
                         <th class="p-4 border-b">Bibit yang Dibeli</th>
                         <th class="p-4 border-b">Status</th>
                         <th class="p-4 border-b text-center">Aksi</th>
@@ -35,6 +36,9 @@
                         <td class="p-4 font-bold text-gray-800">{{ $l->petani->nama_lengkap ?? 'Petani Dihapus' }}</td>
                         <td class="p-4 text-gray-600 uppercase">{{ $l->nama_blok }}</td>
                         <td class="p-4 font-medium text-gray-700">{{ $l->luas_lahan }} m²</td>
+                        <td class="p-4">
+                            <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold uppercase">{{ $l->rencana_bibit ?? '-' }}</span>
+                        </td>
                         <td class="p-4">
                             @php
                                 $bibitDibeli = $l->transaksi->where('status_pembayaran', 'sukses')

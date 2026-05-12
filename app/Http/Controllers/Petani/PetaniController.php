@@ -130,6 +130,7 @@ class PetaniController extends Controller
         $request->validate([
             'nama_blok' => 'required|string|max:255',
             'luas_lahan' => 'required|numeric|min:1',
+            'rencana_bibit' => 'required|string|max:255',
         ]);
 
         $petani = Petani::where('user_id', Auth::id())->first();
@@ -139,7 +140,7 @@ class PetaniController extends Controller
             'nama_blok' => $request->nama_blok,
             'luas_lahan' => $request->luas_lahan,
             'jenis_tanah' => $request->jenis_tanah ?? '-',
-            'rencana_bibit' => '-', // Default value agar tidak QueryException
+            'rencana_bibit' => $request->rencana_bibit,
         ]);
 
         // Beritahu admin

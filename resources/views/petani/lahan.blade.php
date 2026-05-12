@@ -46,6 +46,7 @@
                     <th class="px-6 py-4 text-xs font-bold uppercase">No</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase">Nama/Blok Lahan</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Luas (m²)</th>
+                    <th class="px-6 py-4 text-xs font-bold uppercase text-center">Rencana Bibit</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Bibit yang Dibeli</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Status</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Aksi</th>
@@ -60,6 +61,9 @@
                         <span class="text-[10px] text-gray-400 uppercase tracking-widest italic">Lokasi Pertanian</span>
                     </td>
                     <td class="px-6 py-4 text-center font-black text-[#2D6A4F]">{{ $lahan->luas_lahan }}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold uppercase">{{ $lahan->rencana_bibit ?? '-' }}</span>
+                    </td>
                     <td class="px-6 py-4 text-center">
                         @php
                             $bibitDibeli = $lahan->transaksi->where('status_pembayaran', 'sukses')
@@ -134,6 +138,11 @@
                     <input type="text" id="luas_lahan" oninput="this.value = this.value.replace(/[^0-9]/g, '');" required placeholder="Contoh: 500" 
                         class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
                     <input type="hidden" name="luas_lahan" id="luas_lahan_real">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Rencana Bibit yang Ditanam</label>
+                    <input type="text" name="rencana_bibit" required placeholder="Contoh: Padi, Jagung, atau Kedelai" 
+                        class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
                 </div>
             </div>
             <button type="submit" class="w-full mt-8 bg-[#2D6A4F] text-white p-4 rounded-2xl font-black shadow-lg hover:bg-[#1B4332] transition tracking-widest uppercase">

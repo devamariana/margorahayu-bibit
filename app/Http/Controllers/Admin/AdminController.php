@@ -51,10 +51,14 @@ class AdminController extends Controller
         $bibitPeriodeAktif = 0;
         if ($periodeAktif) {
             $danaPeriodeAktif = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
-                ->whereBetween('created_at', [$periodeAktif->tanggal_mulai.' 00:00:00', $periodeAktif->tanggal_selesai.' 23:59:59'])
+                ->whereHas('bibit', function($q) use ($periodeAktif) {
+                    $q->where('periode_id', $periodeAktif->id);
+                })
                 ->sum('total_harga');
             $bibitPeriodeAktif = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
-                ->whereBetween('created_at', [$periodeAktif->tanggal_mulai.' 00:00:00', $periodeAktif->tanggal_selesai.' 23:59:59'])
+                ->whereHas('bibit', function($q) use ($periodeAktif) {
+                    $q->where('periode_id', $periodeAktif->id);
+                })
                 ->sum('jumlah_beli');
         }
 
@@ -397,10 +401,9 @@ class AdminController extends Controller
         if ($periodeId) {
             $periodeTerpilih = \App\Models\Periode::find($periodeId);
             if ($periodeTerpilih) {
-                $query->whereBetween('created_at', [
-                    $periodeTerpilih->tanggal_mulai . ' 00:00:00',
-                    $periodeTerpilih->tanggal_selesai . ' 23:59:59'
-                ]);
+                $query->whereHas('bibit', function($q) use ($periodeId) {
+                    $q->where('periode_id', $periodeId);
+                });
             }
         }
 
@@ -414,11 +417,8 @@ class AdminController extends Controller
                     ->join('bibits', 'transaksis.bibit_id', '=', 'bibits.id')
                     ->select('bibits.nama_bibit', DB::raw('SUM(transaksis.jumlah_beli) as total_kg'))
                     ->where('transaksis.status_pembayaran', 'sukses')
-                    ->when($periodeTerpilih, function($q) use ($periodeTerpilih) {
-                        return $q->whereBetween('transaksis.created_at', [
-                            $periodeTerpilih->tanggal_mulai . ' 00:00:00',
-                            $periodeTerpilih->tanggal_selesai . ' 23:59:59'
-                        ]);
+                    ->when($periodeId, function($q, $periodeId) {
+                        return $q->where('bibits.periode_id', $periodeId);
                     })
                     ->groupBy('bibits.nama_bibit')
                     ->orderByDesc('total_kg')
@@ -449,10 +449,9 @@ class AdminController extends Controller
         if ($periodeId) {
             $periode = \App\Models\Periode::find($periodeId);
             if ($periode) {
-                $query->whereBetween('created_at', [
-                    $periode->tanggal_mulai . ' 00:00:00',
-                    $periode->tanggal_selesai . ' 23:59:59'
-                ]);
+                $query->whereHas('bibit', function($q) use ($periodeId) {
+                    $q->where('periode_id', $periodeId);
+                });
             }
         }
 
@@ -491,10 +490,9 @@ class AdminController extends Controller
         if ($periodeId) {
             $periodeTerpilih = \App\Models\Periode::find($periodeId);
             if ($periodeTerpilih) {
-                $query->whereBetween('created_at', [
-                    $periodeTerpilih->tanggal_mulai . ' 00:00:00',
-                    $periodeTerpilih->tanggal_selesai . ' 23:59:59'
-                ]);
+                $query->whereHas('bibit', function($q) use ($periodeId) {
+                    $q->where('periode_id', $periodeId);
+                });
             }
         }
 

@@ -21,15 +21,21 @@ class PeriodeController extends Controller
         // Tambahkan statistik ringkas untuk tiap periode
         foreach ($periodes as $p) {
             $p->total_transaksi = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
-                ->whereBetween('created_at', [$p->tanggal_mulai.' 00:00:00', $p->tanggal_selesai.' 23:59:59'])
+                ->whereHas('bibit', function($q) use ($p) {
+                    $q->where('periode_id', $p->id);
+                })
                 ->count();
             
             $p->total_dana = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
-                ->whereBetween('created_at', [$p->tanggal_mulai.' 00:00:00', $p->tanggal_selesai.' 23:59:59'])
+                ->whereHas('bibit', function($q) use ($p) {
+                    $q->where('periode_id', $p->id);
+                })
                 ->sum('total_harga');
 
             $p->total_bibit = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
-                ->whereBetween('created_at', [$p->tanggal_mulai.' 00:00:00', $p->tanggal_selesai.' 23:59:59'])
+                ->whereHas('bibit', function($q) use ($p) {
+                    $q->where('periode_id', $p->id);
+                })
                 ->sum('jumlah_beli');
         }
             
