@@ -17,6 +17,21 @@ class PeriodeController extends Controller
                 return $query->where('tahun', 'like', "%{$search}%");
             })
             ->paginate(10);
+
+        // Tambahkan statistik ringkas untuk tiap periode
+        foreach ($periodes as $p) {
+            $p->total_transaksi = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
+                ->whereBetween('created_at', [$p->tanggal_mulai.' 00:00:00', $p->tanggal_selesai.' 23:59:59'])
+                ->count();
+            
+            $p->total_dana = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
+                ->whereBetween('created_at', [$p->tanggal_mulai.' 00:00:00', $p->tanggal_selesai.' 23:59:59'])
+                ->sum('total_harga');
+
+            $p->total_bibit = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
+                ->whereBetween('created_at', [$p->tanggal_mulai.' 00:00:00', $p->tanggal_selesai.' 23:59:59'])
+                ->sum('jumlah_beli');
+        }
             
         return view('layouts.admin.data_periode', compact('periodes'));
     }
@@ -36,6 +51,15 @@ class PeriodeController extends Controller
         }
 
         Periode::create($request->all());
+
+        // JIKA SET BERAKHIR: Otomatis tutup distribusi bibit yang terkait periode ini (jika ada relasi)
+        if ($request->status == 'berakhir') {
+            // Karena bibit lama mungkin belum punya periode_id, kita bisa tutup yang is_buka = true secara general 
+            // atau yang tanggalnya masuk dalam range periode ini.
+            \App\Models\Bibit::where('is_buka', true)
+                ->whereBetween('tanggal_buka', [$request->tanggal_mulai, $request->tanggal_selesai])
+                ->update(['is_buka' => false]);
+        }
 
         return back()->with('success', 'Periode Tanam berhasil ditambahkan dan status periode lain telah disesuaikan.');
     }
@@ -57,6 +81,16 @@ class PeriodeController extends Controller
         }
 
         $periode->update($request->all());
+
+        // OTOMATIS: Jika periode ditutup, semua distribusi bibit di dalamnya harus ditutup
+        if ($request->status == 'berakhir') {
+            \App\Models\Bibit::where('periode_id', $id)->update(['is_buka' => false]);
+            
+            // Backup logic untuk data lama tanpa periode_id
+            \App\Models\Bibit::where('is_buka', true)
+                ->whereBetween('tanggal_buka', [$periode->tanggal_mulai, $periode->tanggal_selesai])
+                ->update(['is_buka' => false]);
+        }
 
         return back()->with('success', 'Data Periode berhasil diperbarui.');
     }

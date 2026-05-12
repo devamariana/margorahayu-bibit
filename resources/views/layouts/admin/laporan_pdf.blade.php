@@ -48,6 +48,16 @@
                 <td>{{ number_format($totalBibit, 0, ',', '.') }} Kg</td>
             </tr>
             <tr>
+                <td class="summary-label">Periode</td>
+                <td>{{ $periodeTerpilih ? 'Tahun ' . $periodeTerpilih->tahun : 'Semua Periode' }}</td>
+            </tr>
+            @if($periodeTerpilih)
+            <tr>
+                <td class="summary-label">Rentang Tanggal</td>
+                <td>{{ \Carbon\Carbon::parse($periodeTerpilih->tanggal_mulai)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($periodeTerpilih->tanggal_selesai)->format('d/m/Y') }}</td>
+            </tr>
+            @endif
+            <tr>
                 <td class="summary-label">Tanggal Cetak</td>
                 <td>{{ date('d-m-Y H:i') }}</td>
             </tr>

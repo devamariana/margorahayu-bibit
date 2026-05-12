@@ -79,6 +79,7 @@ Route::middleware(['auth:admin', 'checkRole:admin'])->group(function () {
     Route::get('/admin/notifikasi/baca-semua', [AdminController::class, 'bacaSemuaNotifikasi']);
 
     // Kelola Laporan Excel & PDF
+    Route::get('/admin/laporan', [AdminController::class, 'halamanLaporan'])->name('admin.laporan');
     Route::get('/admin/export/excel', [AdminController::class, 'exportExcel'])->name('admin.export.excel');
     Route::get('/admin/export/pdf', [AdminController::class, 'exportPdf'])->name('admin.export.pdf');
 });
@@ -105,8 +106,6 @@ Route::middleware(['auth:petani', 'checkRole:petani'])->group(function () {
     Route::get('/beli-bibit/sukses-bayar/{id}', [PetaniController::class, 'suksesBayarBibit'])->name('petani.sukses_bayar');
     Route::get('/riwayat-pembelian', [PetaniController::class, 'riwayat'])->name('petani.riwayat');
     Route::get('/riwayat-pembelian/sync/{id}', [PetaniController::class, 'syncStatus'])->name('petani.riwayat.sync');
-    Route::get('/riwayat-pembelian/invoice/{id}', [PetaniController::class, 'cetakInvoice'])->name('petani.invoice');
-    Route::get('/riwayat-pembelian/struk/{id}', [PetaniController::class, 'cetakStruk'])->name('petani.struk');
     
     // Pengalihan Jatah (Transfer Hak ke Petani Lain)
     Route::get('/petani/transfer-jatah', [PetaniController::class, 'transferJatah'])->name('petani.transfer_jatah');
@@ -117,6 +116,10 @@ Route::middleware(['auth:petani', 'checkRole:petani'])->group(function () {
 });
 
 // Route Umum (Bisa diakses Admin & Petani) - Kita pakai auth:superadmin,admin,petani agar salah satu saja login sudah cukup
-Route::middleware(['auth:superadmin,admin,petani'])->group(function () {
+Route::middleware(['auth:admin,petani'])->group(function () {
     Route::get('/notifikasi/baca/{id}', [PetaniController::class, 'bacaDanArahkan'])->name('notifikasi.baca');
+    
+    // Fitur Cetak (Bisa diakses Petani & Admin/Ketua)
+    Route::get('/pembelian/invoice/{id}', [PetaniController::class, 'cetakInvoice'])->name('petani.invoice');
+    Route::get('/pembelian/struk/{id}', [PetaniController::class, 'cetakStruk'])->name('petani.struk');
 });

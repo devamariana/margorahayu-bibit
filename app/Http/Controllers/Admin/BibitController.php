@@ -56,6 +56,12 @@ class BibitController extends Controller
 
         $data['status'] = $request->stok > 0 ? 'tersedia' : 'habis';
 
+        // OTOMATIS: Hubungkan ke Periode yang sedang AKTIF
+        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
+        if ($periodeAktif) {
+            $data['periode_id'] = $periodeAktif->id;
+        }
+
         $bibit = Bibit::create($data);
 
         // Notify all verified Petani about the new Bibit

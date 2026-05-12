@@ -55,6 +55,12 @@
             class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.riwayat_transaksi') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
             <i class="fas fa-list-ul mr-3"></i> Riwayat Transaksi
         </a>
+
+        {{-- Menu Laporan --}}
+        <a href="{{ route('admin.laporan') }}" 
+            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.laporan') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
+            <i class="fas fa-file-invoice mr-3 group-hover:scale-110 transition"></i> Rekap Laporan
+        </a>
     </nav>
 
     {{-- Tombol Logout --}}

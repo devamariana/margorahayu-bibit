@@ -58,11 +58,21 @@
                         @endif
                     </label>
                     <div class="relative">
-                        <input type="number" name="jumlah_kg" step="0.1" min="0.1" max="{{ $sisaJatah }}" class="block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-black text-2xl text-green-700" placeholder="0" required>
+                        <input type="number" name="jumlah_kg" step="0.1" 
+                               min="{{ $sisaJatah > 0 ? '0.1' : '0' }}" 
+                               max="{{ $sisaJatah }}" 
+                               {{ $sisaJatah <= 0 ? 'readonly disabled' : '' }}
+                               class="block w-full px-5 py-4 {{ $sisaJatah <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-green-700' }} border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-black text-2xl" 
+                               placeholder="0" required>
                         <div class="absolute inset-y-0 right-5 flex items-center pointer-events-none text-gray-400 font-bold italic text-xs">
                             Kg
                         </div>
                     </div>
+                    @if(isset($selectedBibit) && $sisaJatah <= 0)
+                        <p class="text-[10px] text-red-500 font-bold italic mt-1">
+                            <i class="fas fa-exclamation-triangle"></i> Anda tidak memiliki sisa jatah untuk bibit ini sehingga tidak dapat melakukan transfer.
+                        </p>
+                    @endif
                 </div>
 
                 <div class="space-y-2">
@@ -77,9 +87,11 @@
                     </p>
                 </div>
 
-                <button type="submit" {{ !isset($selectedBibit) ? 'disabled' : '' }} class="w-full {{ !isset($selectedBibit) ? 'bg-gray-300' : 'bg-[#2D6A4F] hover:bg-[#1B4332]' }} text-white font-black py-4 rounded-2xl shadow-lg shadow-green-100 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-2">
+                <button type="submit" {{ !isset($selectedBibit) || $sisaJatah <= 0 ? 'disabled' : '' }} class="w-full {{ !isset($selectedBibit) || $sisaJatah <= 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#2D6A4F] hover:bg-[#1B4332]' }} text-white font-black py-4 rounded-2xl shadow-lg shadow-green-100 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-2">
                     @if(!isset($selectedBibit))
                         PILIH BIBIT TERLEBIH DAHULU
+                    @elseif($sisaJatah <= 0)
+                        SALDO JATAH KOSONG
                     @else
                         KONFIRMASI TRANSFER SEKARANG
                         <i class="fas fa-check-circle"></i>

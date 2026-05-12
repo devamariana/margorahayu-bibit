@@ -59,6 +59,7 @@
                         <th class="p-4 border-b">Jenis/Varietas</th>
                         <th class="p-4 border-b">Stok (Kg)</th>
                         <th class="p-4 border-b">Harga per Kg</th>
+                        <th class="p-4 border-b">Periode</th>
                         <th class="p-4 border-b">Status Distribusi</th>
                         <th class="p-4 border-b text-center">Aksi</th>
                     </tr>
@@ -88,6 +89,15 @@
                         </td>
                         <td class="p-4 font-bold text-gray-800">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}</td>
                         <td class="p-4">
+                            @if($b->periode)
+                                <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-bold text-[10px]">
+                                    {{ $b->periode->tahun }}
+                                </span>
+                            @else
+                                <span class="text-gray-400 text-[10px] italic">Tanpa Periode</span>
+                            @endif
+                        </td>
+                        <td class="p-4">
                             @if($b->is_buka)
                                 <div class="space-y-1">
                                     <span class="bg-green-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">DISTRIBUSI DIBUKA</span>
@@ -104,7 +114,7 @@
                                         <div class="text-[9px] text-gray-400 leading-tight">
                                             Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/Y H:i') }}<br>
                                             Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/Y H:i') }}<br>
-                                            <span class="italic opacity-75 font-bold text-red-400">Otomatis ditutup</span>
+                                            <span class="italic opacity-75 font-bold text-red-400">Ditutup</span>
                                         </div>
                                     </div>
                                 @else

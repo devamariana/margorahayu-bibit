@@ -99,10 +99,10 @@
                         <td class="p-4 text-center">
                             <div class="flex justify-center gap-2">
                                 @if($p->status != 'disetujui')
-                                <form action="{{ route('admin.verifikasi_petani', $p->id) }}" method="POST">
+                                <form action="{{ route('admin.verifikasi_petani', $p->id) }}" method="POST" id="verifyForm-{{ $p->id }}">
                                     @csrf
                                     <input type="hidden" name="status" value="disetujui">
-                                    <button type="button" onclick="confirmAction(this, 'Setujui pendaftaran petani ini?')" title="Setujui Petani" class="w-8 h-8 bg-[#2D6A4F] hover:bg-green-700 text-white rounded shadow-sm flex items-center justify-center transition">
+                                    <button type="submit" onclick="return confirmVerifikasi(event, '{{ $p->id }}', '{{ $p->nama_lengkap }}')" title="Setujui Petani" class="w-8 h-8 bg-[#2D6A4F] hover:bg-green-700 text-white rounded shadow-sm flex items-center justify-center transition">
                                         <i class="fas fa-check text-xs"></i>
                                     </button>
                                 </form>
@@ -138,6 +138,49 @@
             let name = row.querySelector(".name-field").innerText.toLowerCase();
             row.style.display = name.includes(input) ? "" : "none";
         });
+    }
+    function confirmVerifikasi(event, id, name) {
+        event.preventDefault();
+        const form = document.getElementById('verifyForm-' + id);
+        
+        Swal.fire({
+            title: '<div class="text-2xl font-black text-[#1B4332] uppercase tracking-tighter">Verifikasi Petani</div>',
+            html: `
+                <div class="py-4">
+                    <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-100">
+                        <i class="fas fa-user-check text-3xl text-[#2D6A4F]"></i>
+                    </div>
+                    <p class="text-gray-600 text-sm leading-relaxed">
+                        Apakah Anda yakin ingin menyetujui pendaftaran <br> 
+                        <span class="font-bold text-black text-base">"${name}"</span>?
+                    </p>
+                    <p class="text-[10px] text-gray-400 mt-2 italic">*Petani akan mendapatkan notifikasi WhatsApp otomatis</p>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonColor: '#2D6A4F',
+            cancelButtonColor: '#f3f4f6',
+            confirmButtonText: 'YA, SETUJUI',
+            cancelButtonText: '<span class="text-gray-500">BATAL</span>',
+            reverseButtons: true,
+            background: '#ffffff',
+            customClass: {
+                popup: 'rounded-[2rem] border-none shadow-2xl',
+                confirmButton: 'rounded-xl px-8 py-3 text-xs font-black tracking-widest uppercase shadow-lg shadow-green-100',
+                cancelButton: 'rounded-xl px-8 py-3 text-xs font-black tracking-widest uppercase border border-gray-100'
+            },
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
     }
 </script>
 @endsection

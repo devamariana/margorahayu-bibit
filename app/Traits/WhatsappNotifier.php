@@ -13,7 +13,7 @@ trait WhatsappNotifier
     protected function sendWA($target, $message)
     {
         // Prioritas Token dari .env, jika tidak ada pakai default (seperti kodingan awal)
-        $fonnteToken = env('FONNTE_TOKEN', 'uSwGNgmjw2wNtXU8CxmN');
+        $fonnteToken = env('FONNTE_TOKEN', '25pu9ReN7AneBKWEyipa');
         
         // Normalisasi Nomor: Pastikan semua jadi format 628...
         $targets = explode(',', $target);

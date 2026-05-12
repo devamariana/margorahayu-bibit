@@ -51,7 +51,7 @@ class RegisterController extends Controller
     Session::put('register_time', time());
     
     // 4. Kirim OTP via WhatsApp
-    $fonnteToken = env('FONNTE_TOKEN', 'uSwGNgmjw2wNtXU8CxmN'); // Default token fallback just in case env is cached null
+    $fonnteToken = env('FONNTE_TOKEN', '25pu9ReN7AneBKWEyipa'); // Default token fallback just in case env is cached null
     if (!empty($fonnteToken) && $fonnteToken != 'your_fonnte_token_here') {
         try {
             $pesan = "Halo *" . $request->username . "* 👋\n\n"
@@ -160,7 +160,7 @@ public function verifyOtp(Request $request)
         Session::forget('register_otp');
 
         // D. Pesan Notifikasi Berhasil Jadi Member
-        $fonnteToken = env('FONNTE_TOKEN', 'uSwGNgmjw2wNtXU8CxmN');
+        $fonnteToken = env('FONNTE_TOKEN', '25pu9ReN7AneBKWEyipa');
         if (!empty($fonnteToken) && $fonnteToken != 'your_fonnte_token_here') {
             try {
                 $pesan = "🎉 *PENDAFTARAN BERHASIL* 🎉\n\n"
@@ -211,7 +211,7 @@ public function resendOtp()
     Session::put('register_time', time()); // Reset timer 1 menit
 
     // Kirim ulang
-    $fonnteToken = env('FONNTE_TOKEN', 'uSwGNgmjw2wNtXU8CxmN');
+    $fonnteToken = env('FONNTE_TOKEN', '25pu9ReN7AneBKWEyipa');
     if (!empty($fonnteToken) && $fonnteToken != 'your_fonnte_token_here') {
         try {
             $pesan = "Halo *" . $sessData['username'] . "* 👋\n\n"

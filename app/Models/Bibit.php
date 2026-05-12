@@ -30,7 +30,16 @@ class Bibit extends Model
         'is_buka',
         'tanggal_buka',
         'total_luas_snapshot',
+        'periode_id',
     ];
+
+    /**
+     * Relasi ke Tabel Periode
+     */
+    public function periode()
+    {
+        return $this->belongsTo(Periode::class, 'periode_id');
+    }
 
     /**
      * Menjamin tipe data stok dan harga selalu angka

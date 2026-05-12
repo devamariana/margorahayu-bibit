@@ -8,6 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- SweetAlert2 untuk Notifikasi Estetik -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
     <style>
         /* Animasi halus untuk transisi halaman */
         .fade-in {
@@ -308,7 +313,6 @@
                 confirmButtonText: 'Ya, Lanjutkan!',
                 cancelButtonText: 'Batal',
                 background: '#fff',
-                borderRadius: '1.25rem',
                 customClass: {
                     popup: 'rounded-3xl shadow-2xl border border-gray-100',
                     confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',

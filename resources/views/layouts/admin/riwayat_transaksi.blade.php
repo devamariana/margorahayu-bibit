@@ -65,6 +65,7 @@
                         <th class="p-4 border-b">Bibit Dibeli</th>
                         <th class="p-4 border-b">Total Harga</th>
                         <th class="p-4 border-b text-center">Status</th>
+                        <th class="p-4 border-b text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -125,6 +126,19 @@
                                     </form>
                                 </div>
                             @endif
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center gap-1">
+                                @if($t->status_pembayaran == 'sukses')
+                                    <a href="{{ route('petani.invoice', $t->id) }}" target="_blank" class="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition flex items-center justify-center" title="Cetak Invoice (PDF)">
+                                        <i class="fas fa-file-invoice text-[10px]"></i>
+                                    </a>
+                                    <a href="{{ route('petani.struk', $t->id) }}" target="_blank" class="p-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md shadow-sm transition flex items-center justify-center" title="Cetak Struk (Thermal)">
+                                        <i class="fas fa-print text-[10px]"></i>
+                                    </a>
+                                @else
+                                    <span class="text-[9px] text-gray-300 font-bold uppercase">-</span>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @empty

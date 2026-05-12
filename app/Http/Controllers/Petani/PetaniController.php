@@ -139,6 +139,7 @@ class PetaniController extends Controller
             'nama_blok' => $request->nama_blok,
             'luas_lahan' => $request->luas_lahan,
             'jenis_tanah' => $request->jenis_tanah ?? '-',
+            'rencana_bibit' => '-', // Default value agar tidak QueryException
         ]);
 
         // Beritahu admin
@@ -291,15 +292,21 @@ class PetaniController extends Controller
         $order_id = 'TRX-' . time() . '-' . $petani->id;
 
         // Buat Transaksi
+        // Tentukan status awal pembayaran
+        $status_awal = 'pending';
+        if ($request->metode_pembayaran == 'tunai') {
+            $status_awal = 'menunggu_pembayaran';
+        }
+
         $transaksi = Transaksi::create([
-            'petani_id' => $petani->id,
-            'lahan_id' => $lahan->id,
-            'bibit_id' => $bibit->id,
             'order_id' => $order_id,
+            'petani_id' => $petani->id,
+            'bibit_id' => $request->bibit_id,
+            'lahan_id' => $request->lahan_id,
             'jumlah_beli' => $request->jumlah_beli,
             'total_harga' => $request->total_harga,
             'metode_pembayaran' => $request->metode_pembayaran,
-            'status_pembayaran' => 'sukses' // Langsung lunas otomatis sesuai instruksi dosen
+            'status_pembayaran' => $status_awal
         ]);
 
         // Jika Midtrans, generate Snap Token
@@ -310,6 +317,8 @@ class PetaniController extends Controller
                 \Midtrans\Config::$isSanitized = true;
                 \Midtrans\Config::$is3ds = true;
                 \Midtrans\Config::$curlOptions = [
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => 0,
                     CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Accept: application/json'),
                 ];
 
@@ -329,8 +338,10 @@ class PetaniController extends Controller
                 $transaksi->snap_token = $snapToken;
                 $transaksi->save();
             } catch (\Exception $e) {
-                // Biarkan lanjut
+                \Illuminate\Support\Facades\Log::error('Midtrans Error: ' . $e->getMessage());
             }
+
+            return redirect()->route('petani.bayar_bibit', $transaksi->id)->with('success', 'Pesanan dibuat. Silakan pilih metode pembayaran Midtrans.');
         }
 
         // Notif Admin Ada Pembelian Baru
@@ -345,7 +356,11 @@ class PetaniController extends Controller
             ));
         }
 
-        return redirect()->route('petani.riwayat')->with('success', 'Pemesanan bibit berhasil dan status telah LUNAS. Silakan cetak struk Anda.');
+        if ($request->metode_pembayaran == 'tunai' || $request->metode_pembayaran == 'transfer_manual') {
+            return redirect()->route('petani.bayar_bibit', $transaksi->id)->with('success', 'Pesanan berhasil dibuat. Silakan selesaikan pembayaran sesuai petunjuk.');
+        }
+
+        return redirect()->route('petani.riwayat')->with('success', 'Pesanan berhasil dibuat.');
     }
 
     /**
@@ -519,15 +534,22 @@ class PetaniController extends Controller
     /**
      * Menampilkan halaman Riwayat Pembelian (Fungsi Baru)
      */
-    public function riwayat()
+    public function riwayat(Request $request)
     {
         $petani = Petani::where('user_id', Auth::id())->first();
+        $periode = $request->input('periode');
         
-        $riwayatRaw = Transaksi::with(['lahan', 'bibit'])
+        $query = Transaksi::with(['lahan', 'bibit'])
                     ->where('petani_id', $petani->id)
-                    ->where('status_pembayaran', '!=', 'batal')
-                    ->latest()
-                    ->get();
+                    ->where('status_pembayaran', '!=', 'batal');
+
+        if ($periode) {
+            $year = substr($periode, 0, 4);
+            $month = substr($periode, 5, 2);
+            $query->whereYear('created_at', $year)->whereMonth('created_at', $month);
+        }
+
+        $riwayatRaw = $query->latest()->get();
 
         // --- FITUR AUTO-SYNC: Cek Otomatis ke Midtrans & Expired saat Halaman Dibuka ---
         // Sangat berguna jika Webhook terhambat (Misal: Localhost)
@@ -618,20 +640,26 @@ class PetaniController extends Controller
      */
     public function cetakInvoice($id)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $user = Auth::user();
         
-        $transaksi = Transaksi::with(['lahan', 'bibit'])
-            ->where('id', $id)
-            ->where('petani_id', $petani->id)
-            ->firstOrFail();
+        $query = Transaksi::with(['lahan', 'bibit', 'petani'])->where('id', $id);
+
+        // Jika bukan admin, pastikan hanya bisa cetak milik sendiri
+        if ($user->role !== 'admin') {
+            $petani = Petani::where('user_id', $user->id)->first();
+            if (!$petani) abort(403);
+            $query->where('petani_id', $petani->id);
+        }
+
+        $transaksi = $query->firstOrFail();
 
         if ($transaksi->status_pembayaran == 'ditolak' || $transaksi->status_pembayaran == 'kadaluarsa') {
             return back()->with('error', 'Transaksi ini tidak dapat dicetak karena status ' . $transaksi->status_pembayaran);
         }
 
+        $petani = $transaksi->petani;
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('petani.invoice', compact('transaksi', 'petani'));
-        // Download atau Tampilkan di Browser
-        return $pdf->stream('Invoice-' . $transaksi->order_id . '.pdf');
+        return $pdf->stream('Invoice-' . ($transaksi->order_id ?? $transaksi->id) . '.pdf');
     }
 
     /**
@@ -639,11 +667,17 @@ class PetaniController extends Controller
      */
     public function cetakStruk($id)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
-        $transaksi = Transaksi::with(['lahan', 'bibit'])
-            ->where('id', $id)
-            ->where('petani_id', $petani->id)
-            ->firstOrFail();
+        $user = Auth::user();
+        $query = Transaksi::with(['lahan', 'bibit', 'petani'])->where('id', $id);
+
+        if ($user->role !== 'admin') {
+            $petani = Petani::where('user_id', $user->id)->first();
+            if (!$petani) abort(403);
+            $query->where('petani_id', $petani->id);
+        }
+
+        $transaksi = $query->firstOrFail();
+        $petani = $transaksi->petani;
 
         return view('petani.struk', compact('transaksi', 'petani'));
     }

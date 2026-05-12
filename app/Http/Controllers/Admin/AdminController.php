@@ -45,7 +45,20 @@ class AdminController extends Controller
         $totalLunas = \App\Models\Transaksi::where('status_pembayaran', 'sukses')->count();
         $totalPendingTx = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran'])->count();
 
-        // 6. Data Chart Penjualan (6 bulan terakhir)
+        // 6. Statistik Periode Aktif
+        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
+        $danaPeriodeAktif = 0;
+        $bibitPeriodeAktif = 0;
+        if ($periodeAktif) {
+            $danaPeriodeAktif = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
+                ->whereBetween('created_at', [$periodeAktif->tanggal_mulai.' 00:00:00', $periodeAktif->tanggal_selesai.' 23:59:59'])
+                ->sum('total_harga');
+            $bibitPeriodeAktif = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
+                ->whereBetween('created_at', [$periodeAktif->tanggal_mulai.' 00:00:00', $periodeAktif->tanggal_selesai.' 23:59:59'])
+                ->sum('jumlah_beli');
+        }
+
+        // 7. Data Chart Penjualan (6 bulan terakhir)
         $chartLabels = [];
         $chartData = [];
         for ($i = 5; $i >= 0; $i--) {
@@ -65,7 +78,10 @@ class AdminController extends Controller
             'totalLunas',
             'totalPendingTx',
             'chartLabels',
-            'chartData'
+            'chartData',
+            'periodeAktif',
+            'danaPeriodeAktif',
+            'bibitPeriodeAktif'
         ));
     }
 
@@ -86,43 +102,43 @@ class AdminController extends Controller
      */
     public function verifikasiPetani(Request $request, $id)
     {
+        // 1. Cari Petani
         $petani = Petani::find($id);
-
         if (!$petani) {
-            return back()->with('error', 'Data petani tidak ditemukan.');
+            return back()->with('error', 'Data petani dengan ID ' . $id . ' tidak ditemukan.');
         }
 
+        // 2. Update Status Langsung
         $petani->status = $request->status;
         $petani->save();
 
-        // Tandai notifikasi terkait pendaftaran/profil petani ini sebagai dibaca (untuk admin)
-        Auth::user()->unreadNotifications()
-            ->where('data->id_terkait', $petani->user_id)
-            ->get()->markAsRead();
+        // 3. Proses Notifikasi (Optional, bungkus agar tidak menggagalkan update utama)
+        try {
+            // Tandai notifikasi dibaca
+            Auth::user()->unreadNotifications()
+                ->where('data->id_terkait', (string)$petani->user_id)
+                ->get()->markAsRead();
 
-        // Kirim Notifikasi ke User
-        if ($petani->user) {
-            $pesan = $request->status == 'disetujui' 
-                ? 'Selamat! Akun Anda telah berhasil diverifikasi oleh Admin. Silakan lengkapi profil Anda.' 
-                : 'Mohon maaf, pengajuan akun Anda ditolak. Silakan periksa kembali data Anda.';
-            $petani->user->notify(new SistemNotifikasi(
-                $request->status == 'disetujui' ? 'Akun Diverifikasi' : 'Akun Ditolak', 
-                $pesan, 
-                $request->status == 'disetujui' ? 'success' : 'warning',
-                url('/dashboard-petani'),
-                $petani->id
-            ));
+            // Notifikasi Web
+            if ($petani->user) {
+                $petani->user->notify(new SistemNotifikasi(
+                    'Akun Diverifikasi', 
+                    'Akun Anda telah berhasil diverifikasi oleh Admin.', 
+                    'success',
+                    url('/dashboard-petani'),
+                    $petani->id
+                ));
+            }
+
+            // Notifikasi WA
+            if (!empty($petani->no_hp)) {
+                $this->sendWA($petani->no_hp, "✅ *AKUN DIVERIFIKASI*\n\nHalo {$petani->nama_lengkap}, akun Anda telah berhasil diverifikasi oleh Admin.");
+            }
+        } catch (\Exception $e) {
+            \Log::error("Gagal mengirim notifikasi verifikasi: " . $e->getMessage());
         }
 
-        // WhatsApp Notification
-        if (!empty($petani->no_hp)) {
-            $pesanWA = $request->status == 'disetujui' 
-                ? "✅ *AKUN DIVERIFIKASI*\n\nHalo {$petani->nama_lengkap},\nSelamat! Akun Anda telah berhasil diverifikasi oleh Admin. Silakan lengkapi profil Anda dan mulai belanja bibit." 
-                : "❌ *AKUN DITOLAK*\n\nHalo {$petani->nama_lengkap},\nMohon maaf, pengajuan akun Anda ditolak. Silakan periksa kembali data Anda atau hubungi Admin.";
-            $this->sendWA($petani->no_hp, $pesanWA);
-        }
-
-        return back()->with('success', 'Status petani ' . $petani->nama_lengkap . ' berhasil diperbarui menjadi ' . $petani->status);
+        return back()->with('success', 'Petani ' . $petani->nama_lengkap . ' BERHASIL diverifikasi!');
     }
 
     /**
@@ -371,35 +387,76 @@ class AdminController extends Controller
     /**
      * Menampilkan Halaman Rekap Laporan dengan Statistik Ringkas
      */
-    public function halamanLaporan()
+    public function halamanLaporan(Request $request)
     {
+        $periodeId = $request->input('periode_id');
+        $periodeTerpilih = null;
+
+        $query = Transaksi::where('status_pembayaran', 'sukses');
+
+        if ($periodeId) {
+            $periodeTerpilih = \App\Models\Periode::find($periodeId);
+            if ($periodeTerpilih) {
+                $query->whereBetween('created_at', [
+                    $periodeTerpilih->tanggal_mulai . ' 00:00:00',
+                    $periodeTerpilih->tanggal_selesai . ' 23:59:59'
+                ]);
+            }
+        }
+
         // Statistik Laporan
-        $totalDanaMasuk = Transaksi::where('status_pembayaran', 'sukses')->sum('total_harga');
-        $totalBibitKeluar = Transaksi::where('status_pembayaran', 'sukses')->sum('jumlah_beli');
-        $totalTransaksiSelesai = Transaksi::where('status_pembayaran', 'sukses')->count();
+        $totalDanaMasuk = (clone $query)->sum('total_harga');
+        $totalBibitKeluar = (clone $query)->sum('jumlah_beli');
+        $totalTransaksiSelesai = (clone $query)->count();
         
         // Ambil data bibit paling laku
         $terlaris = DB::table('transaksis')
                     ->join('bibits', 'transaksis.bibit_id', '=', 'bibits.id')
                     ->select('bibits.nama_bibit', DB::raw('SUM(transaksis.jumlah_beli) as total_kg'))
                     ->where('transaksis.status_pembayaran', 'sukses')
+                    ->when($periodeTerpilih, function($q) use ($periodeTerpilih) {
+                        return $q->whereBetween('transaksis.created_at', [
+                            $periodeTerpilih->tanggal_mulai . ' 00:00:00',
+                            $periodeTerpilih->tanggal_selesai . ' 23:59:59'
+                        ]);
+                    })
                     ->groupBy('bibits.nama_bibit')
                     ->orderByDesc('total_kg')
                     ->limit(5)
                     ->get();
 
-        return view('layouts.admin.laporan', compact('totalDanaMasuk', 'totalBibitKeluar', 'totalTransaksiSelesai', 'terlaris'));
+        $periodes = \App\Models\Periode::orderBy('tahun', 'desc')->get();
+
+        return view('layouts.admin.laporan', compact(
+            'totalDanaMasuk', 
+            'totalBibitKeluar', 
+            'totalTransaksiSelesai', 
+            'terlaris', 
+            'periodes', 
+            'periodeTerpilih'
+        ));
     }
 
     /**
      * Memproses Export Data ke Excel (FastExcel)
      */
-    public function exportExcel()
+    public function exportExcel(Request $request)
     {
-        $transaksis = Transaksi::with(['petani', 'bibit', 'lahan'])
-                        ->where('status_pembayaran', 'sukses')
-                        ->latest()
-                        ->get();
+        $periodeId = $request->input('periode_id');
+        $query = Transaksi::with(['petani', 'bibit', 'lahan'])
+                        ->where('status_pembayaran', 'sukses');
+
+        if ($periodeId) {
+            $periode = \App\Models\Periode::find($periodeId);
+            if ($periode) {
+                $query->whereBetween('created_at', [
+                    $periode->tanggal_mulai . ' 00:00:00',
+                    $periode->tanggal_selesai . ' 23:59:59'
+                ]);
+            }
+        }
+
+        $transaksis = $query->latest()->get();
 
         $data = $transaksis->map(function ($t) {
             return [
@@ -414,28 +471,46 @@ class AdminController extends Controller
             ];
         });
 
-        return (new \Rap2hpoutre\FastExcel\FastExcel($data))->download('Laporan-Margo-Rahayu-'.date('Y-m-d').'.xlsx');
+        $filename = 'Laporan-Margo-Rahayu-';
+        $filename .= $periodeId ? 'Periode-'.$periodeId.'-' : '';
+        $filename .= date('Y-m-d').'.xlsx';
+
+        return (new \Rap2hpoutre\FastExcel\FastExcel($data))->download($filename);
     }
 
     /**
      * Memproses Export Laporan Data Penjualan ke PDF (DomPDF)
      */
-    public function exportPdf()
+    public function exportPdf(Request $request)
     {
-        $transaksis = Transaksi::with(['petani', 'bibit', 'lahan'])
-                        ->where('status_pembayaran', 'sukses')
-                        ->latest()
-                        ->get();
+        $periodeId = $request->input('periode_id');
+        $query = Transaksi::with(['petani', 'bibit', 'lahan'])
+                        ->where('status_pembayaran', 'sukses');
 
+        $periodeTerpilih = null;
+        if ($periodeId) {
+            $periodeTerpilih = \App\Models\Periode::find($periodeId);
+            if ($periodeTerpilih) {
+                $query->whereBetween('created_at', [
+                    $periodeTerpilih->tanggal_mulai . ' 00:00:00',
+                    $periodeTerpilih->tanggal_selesai . ' 23:59:59'
+                ]);
+            }
+        }
+
+        $transaksis = $query->latest()->get();
         $danaMasuk = $transaksis->sum('total_harga');
         $totalBibit = $transaksis->sum('jumlah_beli');
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('layouts.admin.laporan_pdf', compact('transaksis', 'danaMasuk', 'totalBibit'));
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('layouts.admin.laporan_pdf', compact('transaksis', 'danaMasuk', 'totalBibit', 'periodeTerpilih'));
         
-        // Atur orientasi landscape agar tabel lebar muat
         $pdf->setPaper('a4', 'landscape');
         
-        return $pdf->stream('Laporan-Margo-Rahayu-'.date('Y-m-d').'.pdf');
+        $filename = 'Laporan-Margo-Rahayu-';
+        $filename .= $periodeId ? 'Periode-'.$periodeId.'-' : '';
+        $filename .= date('Y-m-d').'.pdf';
+
+        return $pdf->stream($filename);
     }
 
     /**

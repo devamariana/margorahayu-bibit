@@ -25,22 +25,68 @@
     </div>
     @endif
 
-    {{-- Bagian Statistik --}}
+    {{-- Bagian Statistik Utama --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
-            <p class="text-gray-500 text-xs font-bold uppercase mb-2">Total Petani</p>
-            {{-- DATA ASLI DARI DATABASE --}}
-            <p class="text-3xl font-bold text-gray-800 tracking-tight">{{ $totalPetani }}</p>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
+            <div class="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-[#2D6A4F]">
+                <i class="fas fa-users text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Petani</p>
+                <h3 class="text-2xl font-black text-gray-800">{{ $totalPetani }}</h3>
+            </div>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
-            <p class="text-gray-500 text-xs font-bold uppercase mb-2">Stok Bibit Aktif</p>
-            {{-- DATA ASLI DARI DATABASE --}}
-            <p class="text-3xl font-bold text-gray-800 tracking-tight">{{ number_format($totalStok) }} kg</p>
+        
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
+            <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                <i class="fas fa-seedling text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Stok Bibit Aktif</p>
+                <h3 class="text-2xl font-black text-gray-800">{{ number_format($totalStok) }} <span class="text-xs text-gray-400 font-medium">Kg</span></h3>
+            </div>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
-            <p class="text-gray-500 text-xs font-bold uppercase mb-2">Menunggu Verifikasi</p>
-            {{-- DATA ASLI DARI DATABASE (Tadinya Transaksi Berhasil) --}}
-            <p class="text-3xl font-bold text-orange-600 tracking-tight">{{ $totalPending }}</p>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
+            <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
+                <i class="fas fa-user-clock text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Antrean Verifikasi</p>
+                <h3 class="text-2xl font-black text-orange-600">{{ $totalPending }}</h3>
+            </div>
+        </div>
+    </div>
+
+    {{-- STATISTIK PERIODE AKTIF --}}
+    <div class="bg-gradient-to-r from-[#1B4332] to-[#40916C] p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 opacity-10">
+            <i class="fas fa-calendar-check text-[200px]"></i>
+        </div>
+        <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="space-y-2 text-center md:text-left">
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-green-200 opacity-80">Informasi Musim Tanam</p>
+                <h2 class="text-3xl font-black tracking-tight">
+                    @if($periodeAktif)
+                        PERIODE AKTIF: {{ $periodeAktif->tahun }}
+                    @else
+                        BELUM ADA PERIODE AKTIF
+                    @endif
+                </h2>
+                <p class="text-sm text-green-50 max-w-md opacity-90">
+                    Berikut adalah rekap perolehan transaksi khusus untuk periode penanaman yang sedang berlangsung saat ini.
+                </p>
+            </div>
+            <div class="flex gap-4">
+                <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl min-w-[160px] text-center transition hover:bg-white/20">
+                    <p class="text-[9px] font-black uppercase tracking-widest mb-1 text-green-100">Bibit Keluar</p>
+                    <p class="text-2xl font-black">{{ number_format($bibitPeriodeAktif, 1) }} <span class="text-[10px] font-medium">Kg</span></p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl min-w-[160px] text-center transition hover:bg-white/20">
+                    <p class="text-[9px] font-black uppercase tracking-widest mb-1 text-green-100">Dana Masuk</p>
+                    <p class="text-2xl font-black">Rp {{ number_format($danaPeriodeAktif, 0, ',', '.') }}</p>
+                </div>
+            </div>
         </div>
     </div>
 

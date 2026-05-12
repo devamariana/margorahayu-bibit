@@ -22,6 +22,7 @@ class Lahan extends Model
         'luas_lahan',
         'jenis_tanah',
         'lokasi',
+        'rencana_bibit', // Ditambahkan agar tidak error saat insert
         'status',
     ];
 

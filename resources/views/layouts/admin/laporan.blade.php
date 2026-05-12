@@ -5,20 +5,41 @@
 @section('content')
 <div class="space-y-8 animate-fade-in">
     {{-- Header Page --}}
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
             <h2 class="text-2xl font-black text-[#1B4332] uppercase tracking-tighter">Rekap Laporan Aktivitas</h2>
-            <p class="text-xs text-gray-500 font-medium">Monitoring perolehan dana dan distribusi bibit kelompok tani.</p>
+            <p class="text-xs text-gray-500 font-medium">
+                @if($periodeTerpilih)
+                    Menampilkan data periode <span class="font-bold text-[#2D6A4F]">{{ $periodeTerpilih->tahun }}</span> ({{ \Carbon\Carbon::parse($periodeTerpilih->tanggal_mulai)->format('d M') }} - {{ \Carbon\Carbon::parse($periodeTerpilih->tanggal_selesai)->format('d M Y') }})
+                @else
+                    Monitoring perolehan dana dan distribusi bibit kelompok tani (Semua Waktu).
+                @endif
+            </p>
         </div>
-        <div class="flex flex-wrap gap-3">
-            <a href="{{ route('admin.export.excel') }}" class="inline-flex items-center px-6 py-3 bg-[#D97706] hover:bg-[#B45309] text-white rounded-2xl font-bold shadow-lg shadow-orange-100 transition-all transform hover:-translate-y-1 gap-2 text-sm">
-                <i class="fas fa-file-excel"></i>
-                <span>EXCEL</span>
-            </a>
-            <a href="{{ route('admin.export.pdf') }}" target="_blank" class="inline-flex items-center px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold shadow-lg shadow-red-100 transition-all transform hover:-translate-y-1 gap-2 text-sm">
-                <i class="fas fa-file-pdf"></i>
-                <span>UNDUH PDF</span>
-            </a>
+
+        <div class="flex flex-wrap items-center gap-4">
+            {{-- Filter Periode --}}
+            <form action="{{ route('admin.laporan') }}" method="GET" class="flex items-center gap-2">
+                <select name="periode_id" onchange="this.form.submit()" class="pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-700 shadow-sm focus:ring-2 focus:ring-[#2D6A4F] outline-none appearance-none cursor-pointer min-w-[180px]">
+                    <option value="">-- Semua Periode --</option>
+                    @foreach($periodes as $p)
+                        <option value="{{ $p->id }}" {{ request('periode_id') == $p->id ? 'selected' : '' }}>
+                            Periode {{ $p->tahun }} ({{ $p->status }})
+                        </option>
+                    @endforeach
+                </select>
+            </form>
+
+            <div class="flex gap-2">
+                <a href="{{ route('admin.export.excel', ['periode_id' => request('periode_id')]) }}" class="inline-flex items-center px-5 py-2.5 bg-[#D97706] hover:bg-[#B45309] text-white rounded-2xl font-bold shadow-lg shadow-orange-100 transition-all transform hover:-translate-y-1 gap-2 text-[10px] uppercase tracking-widest">
+                    <i class="fas fa-file-excel"></i>
+                    <span>Excel</span>
+                </a>
+                <a href="{{ route('admin.export.pdf', ['periode_id' => request('periode_id')]) }}" target="_blank" class="inline-flex items-center px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold shadow-lg shadow-red-100 transition-all transform hover:-translate-y-1 gap-2 text-[10px] uppercase tracking-widest">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>PDF</span>
+                </a>
+            </div>
         </div>
     </div>
 

@@ -32,6 +32,7 @@
                         <th class="p-4 border-b">Tahun</th>
                         <th class="p-4 border-b">Tanggal Mulai</th>
                         <th class="p-4 border-b">Tanggal Selesai</th>
+                        <th class="p-4 border-b">Ringkasan Aktivitas</th>
                         <th class="p-4 border-b">Status</th>
                         <th class="p-4 border-b text-center">Aksi</th>
                     </tr>
@@ -43,6 +44,22 @@
                         <td class="p-4 font-bold text-gray-800">{{ $p->tahun }}</td>
                         <td class="p-4 text-gray-600">{{ \Carbon\Carbon::parse($p->tanggal_mulai)->format('d M Y') }}</td>
                         <td class="p-4 text-gray-600">{{ \Carbon\Carbon::parse($p->tanggal_selesai)->format('d M Y') }}</td>
+                        <td class="p-4">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2 text-[10px] font-bold text-gray-500">
+                                    <i class="fas fa-shopping-cart text-blue-500 w-3"></i>
+                                    <span>{{ $p->total_transaksi }} Transaksi</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-[10px] font-bold text-gray-500">
+                                    <i class="fas fa-seedling text-green-500 w-3"></i>
+                                    <span>{{ number_format($p->total_bibit, 1) }} Kg</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-[10px] font-bold text-gray-500">
+                                    <i class="fas fa-wallet text-orange-500 w-3"></i>
+                                    <span>Rp {{ number_format($p->total_dana, 0, ',', '.') }}</span>
+                                </div>
+                            </div>
+                        </td>
                         <td class="p-4">
                             @if($p->status == 'aktif')
                                 <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold text-[10px] uppercase">AKTIF</span>
