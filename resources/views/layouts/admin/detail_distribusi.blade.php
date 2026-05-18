@@ -36,7 +36,7 @@
 
     {{-- TABEL TRANSPARANSI --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto overflow-y-auto max-h-[500px] relative">
+        <div class="overflow-x-auto relative">
             <table class="w-full text-left text-xs">
                 <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-tighter sticky top-0 z-10">
                     <tr>

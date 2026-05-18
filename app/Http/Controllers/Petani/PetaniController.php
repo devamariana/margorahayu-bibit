@@ -29,7 +29,7 @@ class PetaniController extends Controller
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
         $bibitsTerbuka = Bibit::where('is_buka', true)->where('stok', '>', 0)->latest()->get();
         
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
         if (!$petani) {
             return redirect()->route('login');
@@ -98,6 +98,19 @@ class PetaniController extends Controller
                     ->take(3)
                     ->get();
 
+        // 5. Data Chart Pembelian (6 bulan terakhir)
+        $chartLabels = [];
+        $chartData = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = \Carbon\Carbon::today()->subMonths($i);
+            $chartLabels[] = $month->translatedFormat('M');
+            $chartData[] = Transaksi::where('petani_id', $petani->id)
+                ->where('status_pembayaran', 'sukses')
+                ->whereMonth('created_at', $month->month)
+                ->whereYear('created_at', $month->year)
+                ->sum('jumlah_beli');
+        }
+
         return view('petani.dashboard', compact(
             'petani', 
             'riwayat', 
@@ -105,13 +118,15 @@ class PetaniController extends Controller
             'jumlahLahan', 
             'isPenjualanAktif',
             'periodeAktif',
-            'listDistribusi'
+            'listDistribusi',
+            'chartLabels',
+            'chartData'
         ));
     }
 
     public function lahan()
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         
         $lahans = Lahan::with(['transaksi' => function($q) {
             $q->where('status_pembayaran', 'sukses')->with('bibit');
@@ -133,7 +148,7 @@ class PetaniController extends Controller
             'rencana_bibit' => 'required|string|max:255',
         ]);
 
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
         $lahan = Lahan::create([
             'petani_id' => $petani->id,
@@ -163,7 +178,7 @@ class PetaniController extends Controller
      */
     public function hapusLahan($id)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $lahan = Lahan::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
         
         $lahan->delete();
@@ -176,7 +191,7 @@ class PetaniController extends Controller
      */
     public function beliBibit()
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
         // 1. Cek Status Verifikasi
         if ($petani->status !== 'disetujui') {
@@ -235,7 +250,7 @@ class PetaniController extends Controller
             'metode_pembayaran' => 'required|in:midtrans,transfer_manual,tunai',
         ]);
 
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
         // 0. Safety Check
         $semuaBibit = Bibit::where('is_buka', true)->where('stok', '>', 0)->get();
@@ -395,7 +410,7 @@ class PetaniController extends Controller
      */
     public function bayarBibit($id)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
         // Cek tenggat waktu 1 minggu dari tanggal persetujuan (updated_at)
@@ -481,7 +496,7 @@ class PetaniController extends Controller
      */
     public function batalBayar($id)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
         // Hanya bisa dibatalkan jika statusnya belum dibayar/selesai
@@ -506,7 +521,7 @@ class PetaniController extends Controller
      */
     public function suksesBayarBibit($id)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
         // Cek status satu kali lagi untuk memastikan database terupdate segera setelah redirect
@@ -537,7 +552,7 @@ class PetaniController extends Controller
      */
     public function riwayat(Request $request)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $periode = $request->input('periode');
         
         $query = Transaksi::with(['lahan', 'bibit'])
@@ -606,7 +621,7 @@ class PetaniController extends Controller
      */
     public function syncStatus($id)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)
                             ->where('petani_id', $petani->id)
                             ->firstOrFail();
@@ -697,7 +712,7 @@ class PetaniController extends Controller
      */
     public function index()
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         return view('petani.profil', compact('petani'));
     }
 
@@ -715,7 +730,7 @@ class PetaniController extends Controller
             'foto_kk' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
         if ($request->hasFile('foto_ktp')) {
             $fileKtp = $request->file('foto_ktp');
@@ -759,7 +774,7 @@ class PetaniController extends Controller
      */
     public function transferJatah(Request $request)
     {
-        $petani = Petani::where('user_id', Auth::id())->first();
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         
         // Cek Keaktifan Penjualan Bibit
         $bibitsTerbuka = Bibit::where('is_buka', true)->where('stok', '>', 0)->get();
@@ -819,7 +834,7 @@ class PetaniController extends Controller
             'alasan' => 'nullable|string|max:255',
         ]);
 
-        $pengirim = Petani::where('user_id', Auth::id())->first();
+        $pengirim = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $penerima = Petani::findOrFail($request->penerima_id);
         $bibit = Bibit::findOrFail($request->bibit_id);
 

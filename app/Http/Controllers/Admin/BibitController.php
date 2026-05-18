@@ -57,43 +57,15 @@ class BibitController extends Controller
         $data['status'] = $request->stok > 0 ? 'tersedia' : 'habis';
 
         // OTOMATIS: Hubungkan ke Periode yang sedang AKTIF
-        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
+        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->latest()->first();
         if ($periodeAktif) {
             $data['periode_id'] = $periodeAktif->id;
         }
 
         $bibit = Bibit::create($data);
 
-        // Notify all verified Petani about the new Bibit
-        $petanis = Petani::with('user')->where('status', 'disetujui')->get();
-        $targetWA = [];
-        foreach ($petanis as $petani) {
-            if ($petani->user) {
-                $petani->user->notify(new SistemNotifikasi(
-                    'Bibit Baru Tersedia! 🌱', 
-                    "Kabar gembira! Bibit jenis " . ($request->jenis ?? '') . " " . $request->nama_bibit . " sekarang sudah tersedia dengan harga subsidi Rp" . number_format($request->harga_subsidi, 0, ',', '.') . ".", 
-                    'bibit',
-                    url('/beli-bibit')
-                ));
-            }
-            if (!empty($petani->no_hp)) {
-                $targetWA[] = $petani->no_hp;
-            }
-        }
-
-        // Kirim Notifikasi via WhatsApp Fonnte ke semua petani yang disetujui
-        if (!empty($targetWA)) {
-            $pesanWA = "🌱 *INPO BIBIT BARU* 🌱\n\n"
-                     . "Kabar gembira untuk para petani!\n"
-                     . "Bibit *" . ($request->jenis ? $request->jenis . ' ' : '') . $request->nama_bibit . "* "
-                     . "sekarang sudah tersedia di gudang *Si Margo Rahayu II*.\n\n"
-                     . "💰 Harga Subsidi: *Rp " . number_format($request->harga_subsidi, 0, ',', '.') . "*\n"
-                     . "📦 Stok Tersedia: *" . $request->stok . "*\n\n"
-                     . "Segera cek dan pesan di Aplikasi sekarang sebelum kehabisan!\n"
-                     . url('/login');
-
-            $this->sendWA(implode(',', $targetWA), $pesanWA);
-        }
+        // Notifikasi WA dan Sistem sengaja dihilangkan di sini.
+        // Notifikasi hanya akan dikirim saat Admin menekan tombol "Buka Distribusi"
 
         return redirect()->route('admin.data_bibit')
             ->with('success', 'Master Data Masuk Berhasil Dicatat!')
@@ -140,21 +112,8 @@ class BibitController extends Controller
         $oldStok = $bibit->stok;
         $bibit->update($data);
 
-        // Jika stok bertambah, kirim notifikasi WA "Stok Masuk"
-        if ($request->stok > $oldStok) {
-            $petanis = Petani::where('status', 'disetujui')->whereNotNull('no_hp')->get();
-            $targetWA = $petanis->pluck('no_hp')->implode(',');
-
-            if (!empty($targetWA)) {
-                $pesanWA = "♻️ *UPDATE STOK BIBIT* ♻️\n\n"
-                         . "Stok tambahan untuk bibit *" . $bibit->nama_bibit . "* telah masuk!\n"
-                         . "Total stok sekarang: *" . $request->stok . " Kg*\n\n"
-                         . "Silakan cek jatah Anda dan lakukan pemesanan di aplikasi.\n"
-                         . url('/login');
-
-                $this->sendWA($targetWA, $pesanWA);
-            }
-        }
+        // Notifikasi WA dihapus dari sini agar tidak mengirim pesan saat stok ditambah secara manual.
+        // Pemberitahuan hanya saat Buka Distribusi.
 
         return redirect()->route('admin.data_bibit')->with('success', 'Data Master Bibit berhasil diperbarui!');
     }
@@ -196,11 +155,32 @@ class BibitController extends Controller
             ->where('status', 'disetujui')
             ->sum('luas_lahan');
 
+        // LOGIKA PERIODE 15 HARI (Masa Tanam)
+        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->latest()->first();
+        $hariIni = now()->format('Y-m-d');
+        $limaBelasHari = now()->addDays(15)->format('Y-m-d');
+
+        if (!$periodeAktif) {
+            // Jika belum ada periode aktif, otomatis buat
+            $periodeAktif = \App\Models\Periode::create([
+                'tahun' => date('Y'),
+                'tanggal_mulai' => $hariIni,
+                'tanggal_selesai' => $limaBelasHari,
+                'status' => 'aktif'
+            ]);
+        } else {
+            // Perbarui periode aktif untuk diperpanjang 15 hari sejak distribusi dibuka
+            $periodeAktif->update([
+                'tanggal_selesai' => $limaBelasHari
+            ]);
+        }
+
         $bibit->update([
             'is_buka' => true,
             'tanggal_buka' => now(),
             'stok_awal' => $bibit->stok,
-            'total_luas_snapshot' => $totalLuasLahanRaw
+            'total_luas_snapshot' => $totalLuasLahanRaw,
+            'periode_id' => $periodeAktif->id // Pastikan terhubung ke periode ini
         ]);
 
         // Kirim Notifikasi ke semua petani

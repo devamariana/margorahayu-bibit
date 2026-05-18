@@ -25,18 +25,22 @@
 
         /* CUSTOM SCROLLBAR GLOBAL - Agar tidak "jelek" dan merusak tampilan */
         ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
         }
+
         ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1; /* slate-300 */
+            background: #f1f1f1;
             border-radius: 10px;
         }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2D6A4F;
+            border-radius: 10px;
+        }
+
         ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; /* slate-400 */
+            background: #1B4332;
         }
         
         /* Hilangkan horizontal scrollbar pada body jika tidak perlu */
@@ -143,7 +147,7 @@
                 </div>
             </header>
 
-            <main class="flex-1 overflow-x-hidden overflow-y-auto p-6 bg-[#F8FBF9]">
+            <main class="flex-1 flex flex-col overflow-hidden p-6 bg-[#F8FBF9]">
                 @yield('content')
             </main>
         </div>
@@ -325,5 +329,6 @@
             });
         }
     </script>
+    @stack('scripts')
 </body>
 </html>

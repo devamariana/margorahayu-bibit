@@ -50,7 +50,7 @@
             <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Username (Akun)</label>
-                    <input type="text" value="{{ Auth::user()->username }}" class="block w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-gray-500 outline-none cursor-not-allowed text-sm" readonly>
+                    <input type="text" value="{{ (Auth::guard('petani')->user() ?? Auth::user())->username }}" class="block w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-gray-500 outline-none cursor-not-allowed text-sm" readonly>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest mb-1.5 ml-1">Nama Lengkap</label>

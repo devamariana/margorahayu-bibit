@@ -12,9 +12,7 @@
     <div class="flex items-center gap-4">
         <div class="text-right hidden sm:block">
             {{-- Menampilkan Nama Lengkap dari Profil jika ada, jika tidak pakai username --}}
-            <p class="text-sm font-bold text-[#2D6A4F]">
-                {{ $petani->nama_lengkap ?? Auth::user()->username }}
-            </p>
+                {{ $petani->nama_lengkap ?? (Auth::guard('petani')->user() ?? Auth::user())->username ?? 'Petani' }}
             
             {{-- LOGIKA STATUS VERIFIKASI - Disinkronkan ke variabel $petani --}}
             @if(isset($petani) && $petani->status == 'disetujui')
@@ -35,8 +33,9 @@
         {{-- NOTIFICATION CENTER (Untuk Semua Petani) --}}
         @if(isset($petani))
         @php
-            $userNotifications = Auth::check() ? Auth::user()->notifications()->latest()->take(10)->get() : collect();
-            $unreadCount = Auth::check() ? Auth::user()->unreadNotifications->count() : 0;
+            $currentUser = Auth::guard('petani')->user() ?? Auth::user();
+            $userNotifications = $currentUser ? $currentUser->notifications()->latest()->take(10)->get() : collect();
+            $unreadCount = $currentUser ? $currentUser->unreadNotifications->count() : 0;
         @endphp
         <div class="relative items-center flex" id="notificationCenterDropdown">
             <button onclick="toggleNotificationDropdown()" class="relative p-2 text-gray-500 hover:text-[#2D6A4F] focus:outline-none transition group">
@@ -122,7 +121,7 @@
                             <i class="fas fa-user text-3xl"></i>
                         </div>
                     </div>
-                    <h3 class="font-bold text-gray-800 text-base leading-tight">{{ $petani->nama_lengkap ?? Auth::user()->username }}</h3>
+                    <h3 class="font-bold text-gray-800 text-base leading-tight">{{ $petani->nama_lengkap ?? (Auth::guard('petani')->user() ?? Auth::user())->username ?? 'Petani' }}</h3>
                     <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">ID Petani: #{{ str_pad($petani->id, 4, '0', STR_PAD_LEFT) }}</p>
                     
                     @if(isset($petani) && $petani->status == 'disetujui')

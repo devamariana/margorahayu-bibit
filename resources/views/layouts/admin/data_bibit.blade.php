@@ -3,11 +3,14 @@
 @section('title', 'Manajemen Distribusi Bibit')
 
 @section('content')
-<div class="space-y-6">
-    {{-- Notifikasi via Layout (Global) --}}
+<div class="flex flex-col h-full overflow-hidden">
+    <div class="flex-none"> {{-- Bagian ini tetap diam (Fixed) --}}
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-black text-gray-800 uppercase tracking-tight">Manajemen Distribusi Bibit</h2>
+        </div>
 
-    {{-- ROW 1: STATISTIK RINGKAS --}}
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {{-- ROW 1: STATISTIK RINGKAS --}}
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
             <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shadow-sm">
                 <i class="fas fa-check-circle text-xl"></i>
@@ -28,28 +31,27 @@
         </div>
         {{-- Spacer atau Info Tambahan bisa di sini --}}
         <div class="md:col-span-2"></div>
-    </div>
-
-    {{-- ROW 2: ACTIONS --}}
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
-        {{-- Fitur Cari --}}
-        <div class="relative w-full md:w-96">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                <i class="fas fa-search text-sm"></i>
-            </div>
-            <input type="text" id="searchInput" onkeyup="searchTable()"
-                   placeholder="Cari berdasarkan nama bibit..." 
-                   class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] focus:border-transparent focus:outline-none shadow-sm transition-all text-sm">
         </div>
-        
-        {{-- Tombol Tambah Bibit --}}
-        <button onclick="openModal('tambah')" class="w-full md:w-auto bg-[#007BFF] hover:bg-blue-700 text-white font-black py-3 px-8 rounded-xl shadow-lg shadow-blue-100 flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 uppercase tracking-widest text-xs">
-            <i class="fas fa-truck-loading"></i> Input Kedatangan Bibit
-        </button>
+
+        {{-- ROW 2: ACTIONS --}}
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-50 mb-4">
+            {{-- Fitur Cari --}}
+            <div class="relative w-full md:w-96">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                    <i class="fas fa-search text-xs"></i>
+                </div>
+                <input type="text" id="searchInput" onkeyup="searchBibit()" placeholder="Cari berdasarkan nama bibit..." 
+                    class="block w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] focus:bg-white transition-all text-xs outline-none">
+            </div>
+            <button onclick="openModal('tambah')" class="px-6 py-2 bg-[#007BFF] hover:bg-blue-700 text-white text-[10px] font-black rounded-xl shadow-lg shadow-blue-100 transition uppercase tracking-widest flex items-center gap-2">
+                <i class="fas fa-truck-loading"></i> Input Kedatangan Bibit
+            </button>
+        </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] text-xs relative">
+    {{-- TABLE SECTION: Ini yang akan mengambil sisa layar --}}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+        <div class="overflow-x-auto overflow-y-auto flex-1 text-[11px] relative custom-scrollbar">
             <table class="w-full text-left border-collapse" id="bibitTable">
                 <thead class="bg-gray-50 text-gray-500 font-bold sticky top-0 z-10">
                     <tr>
@@ -99,26 +101,24 @@
                         </td>
                         <td class="p-4">
                             @if($b->is_buka)
-                                <div class="space-y-1">
-                                    <span class="bg-green-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">DISTRIBUSI DIBUKA</span>
-                                    <div class="text-[9px] text-gray-400 leading-tight">
-                                        Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/Y H:i') }}<br>
-                                        Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/Y H:i') }}<br>
-                                        Ref Luas: {{ number_format($b->total_luas_snapshot, 0, ',', '.') }} m²
+                                <div class="flex flex-col gap-1">
+                                    <span class="inline-block bg-green-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase w-fit">DISTRIBUSI DIBUKA</span>
+                                    <div class="text-[9px] text-gray-400 flex flex-col">
+                                        <span>Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/y H:i') }}</span>
+                                        <span>Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/y H:i') }}</span>
                                     </div>
                                 </div>
                             @else
                                 @if($b->tanggal_buka)
-                                    <div class="space-y-1">
-                                        <span class="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">DISTRIBUSI SELESAI</span>
-                                        <div class="text-[9px] text-gray-400 leading-tight">
-                                            Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/Y H:i') }}<br>
-                                            Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/Y H:i') }}<br>
-                                            <span class="italic opacity-75 font-bold text-red-400">Ditutup</span>
+                                    <div class="flex flex-col gap-1 opacity-60">
+                                        <span class="inline-block bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase w-fit">DISTRIBUSI SELESAI</span>
+                                        <div class="text-[9px] text-gray-400 flex flex-col">
+                                            <span>Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/y H:i') }}</span>
+                                            <span>Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/y H:i') }}</span>
                                         </div>
                                     </div>
                                 @else
-                                    <span class="bg-gray-100 text-gray-400 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-tighter border border-gray-200">BELUM DIBUKA</span>
+                                    <span class="bg-gray-100 text-gray-400 text-[8px] font-black px-2 py-0.5 rounded uppercase border border-gray-200">BELUM DIBUKA</span>
                                 @endif
                             @endif
                         </td>

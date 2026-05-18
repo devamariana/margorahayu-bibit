@@ -63,7 +63,7 @@
 
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 class="text-lg font-bold mb-4">Riwayat Pengalihan</h3>
-        <div class="overflow-x-auto overflow-y-auto max-h-[400px] relative">
+        <div class="overflow-x-auto relative">
             <table class="w-full text-sm text-left">
                 <thead class="sticky top-0 z-10">
                     <tr class="bg-gray-50">

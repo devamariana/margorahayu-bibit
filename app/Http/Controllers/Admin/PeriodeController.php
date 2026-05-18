@@ -53,10 +53,34 @@ class PeriodeController extends Controller
 
         // LOGIKA OTOMATIS: Jika yang baru di-set AKTIF, maka yang lain harus BERAKHIR
         if ($request->status == 'aktif') {
+            $periodeLama = Periode::where('status', 'aktif')->get();
             Periode::where('status', 'aktif')->update(['status' => 'berakhir']);
         }
 
-        Periode::create($request->all());
+        $periodeBaru = Periode::create($request->all());
+
+        // PINDAHKAN SISA STOK KE PERIODE BARU JIKA AKTIF
+        if ($request->status == 'aktif' && isset($periodeLama) && $periodeLama->count() > 0) {
+            foreach ($periodeLama as $lama) {
+                // Cari bibit di periode lama yang stoknya masih > 0
+                $bibitSisa = \App\Models\Bibit::where('periode_id', $lama->id)
+                                ->where('stok', '>', 0)
+                                ->get();
+
+                foreach ($bibitSisa as $bibit) {
+                    // Duplikasi bibit untuk periode baru
+                    $bibitBaru = $bibit->replicate();
+                    $bibitBaru->periode_id = $periodeBaru->id;
+                    $bibitBaru->is_buka = false; // Harus dibuka manual lagi atau bisa diset true jika otomatis
+                    $bibitBaru->tanggal_buka = null;
+                    $bibitBaru->stok_awal = $bibit->stok;
+                    $bibitBaru->save();
+
+                    // Kosongkan stok bibit di periode lama agar laporan tutup buku bersih
+                    $bibit->update(['stok' => 0, 'status' => 'habis']);
+                }
+            }
+        }
 
         // JIKA SET BERAKHIR: Otomatis tutup distribusi bibit yang terkait periode ini (jika ada relasi)
         if ($request->status == 'berakhir') {

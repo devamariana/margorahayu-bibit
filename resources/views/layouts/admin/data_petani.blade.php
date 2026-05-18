@@ -3,25 +3,27 @@
 @section('title', 'Kelola Data Petani')
 
 @section('content')
-<div class="space-y-6">
+<div class="flex flex-col h-full overflow-hidden">
     {{-- Notifikasi Sukses via Layout (Global SweetAlert2) --}}
 
-    <div class="sticky top-0 z-20 bg-[#F0F7F2]/95 backdrop-blur-sm pt-2 pb-6">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="relative w-full md:w-96">
-                <input type="text" id="searchInput" onkeyup="searchPetani()"
-                    placeholder="Cari nama petani..." 
-                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm">
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+    <div class="flex-none">
+        <div class="z-20 bg-[#F0F7F2]/95 backdrop-blur-sm pt-2 pb-6 mb-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="relative w-full md:w-96">
+                    <input type="text" id="searchInput" onkeyup="searchPetani()"
+                        placeholder="Cari nama petani..." 
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+                <a href="{{ route('admin.petani.pdf') }}" target="_blank" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm flex items-center transition whitespace-nowrap">
+                    <i class="fas fa-file-pdf mr-2"></i> Cetak PDF
+                </a>
             </div>
-            <a href="{{ route('admin.petani.pdf') }}" target="_blank" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm flex items-center transition whitespace-nowrap">
-                <i class="fas fa-file-pdf mr-2"></i> Cetak PDF
-            </a>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] relative">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+        <div class="overflow-x-auto overflow-y-auto flex-1 relative custom-scrollbar">
             <table class="w-full text-left border-collapse" id="petaniTable">
                 <thead class="bg-gray-50 text-gray-600 uppercase text-[10px] font-bold tracking-wider sticky top-0 z-10">
                     <tr>

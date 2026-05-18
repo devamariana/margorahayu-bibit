@@ -269,9 +269,19 @@ class AdminController extends Controller
     /**
      * Menampilkan semua data lahan petani
      */
-    public function dataLahan()
+    public function dataLahan(Request $request)
     {
-        $lahans = Lahan::with(['petani', 'transaksi.bibit'])->latest()->get();
+        $search = $request->input('search');
+        $lahans = Lahan::with(['petani', 'transaksi.bibit'])
+            ->when($search, function($query, $search) {
+                return $query->where('nama_blok', 'like', "%{$search}%")
+                             ->orWhereHas('petani', function($q) use ($search) {
+                                 $q->where('nama_lengkap', 'like', "%{$search}%");
+                             });
+            })
+            ->latest()
+            ->paginate(20);
+            
         return view('layouts.admin.data_lahan', compact('lahans'));
     }
 
@@ -283,10 +293,12 @@ class AdminController extends Controller
         $lahan = Lahan::findOrFail($id);
         
         $request->validate([
-            'status' => 'required|in:pending,disetujui,ditolak'
+            'status' => 'required|in:pending,disetujui,ditolak',
+            'catatan' => 'nullable|string'
         ]);
 
         $lahan->status = $request->status;
+        $lahan->catatan_admin = $request->catatan;
         $lahan->save();
 
         // Tandai notifikasi terkait lahan ini sebagai dibaca (untuk admin)
@@ -299,7 +311,7 @@ class AdminController extends Controller
         if ($petani && $petani->user) {
             $pesan = $request->status == 'disetujui' 
                 ? "Data Lahan Anda berlokasi di {$lahan->nama_blok} telah disetujui." 
-                : "Pengajuan Data Lahan Anda di {$lahan->nama_blok} ditolak Admin.";
+                : "Pengajuan Data Lahan Anda di {$lahan->nama_blok} ditolak Admin. Alasan: " . ($request->catatan ?? 'Tidak ada catatan.');
             $petani->user->notify(new SistemNotifikasi(
                 'Status Data Lahan', 
                 $pesan, 

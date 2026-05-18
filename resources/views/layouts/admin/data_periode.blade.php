@@ -3,8 +3,8 @@
 @section('title', 'Kelola Periode Tanam')
 
 @section('content')
-<div class="space-y-6">
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="flex flex-col h-full overflow-hidden">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
         <div class="relative w-full md:w-80">
             <form action="{{ route('admin.data_periode') }}" method="GET" class="flex">
                 <input type="text" 
@@ -23,8 +23,8 @@
         </button>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto overflow-y-auto max-h-[600px] relative">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+        <div class="overflow-x-auto overflow-y-auto flex-1 relative custom-scrollbar">
             <table class="w-full text-left border-collapse">
                 <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider sticky top-0 z-10">
                     <tr>

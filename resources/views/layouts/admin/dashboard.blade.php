@@ -3,11 +3,11 @@
 @section('title', 'Dashboard Admin Overview')
 
 @section('content')
-<div class="space-y-6">
+<div class="h-full overflow-y-auto custom-scrollbar p-1">
     {{-- ALERT STOK KRITIS (Hanya Muncul jika ada stok aktif < 50) --}}
     @php $stokKritis = \App\Models\Bibit::where('is_buka', true)->where('stok', '<', 50)->get(); @endphp
     @if($stokKritis->count() > 0)
-    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl shadow-sm animate-pulse">
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl shadow-sm animate-pulse mb-6">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
@@ -26,7 +26,7 @@
     @endif
 
     {{-- Bagian Statistik Utama --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
             <div class="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-[#2D6A4F]">
                 <i class="fas fa-users text-2xl"></i>
@@ -59,7 +59,7 @@
     </div>
 
     {{-- STATISTIK PERIODE AKTIF --}}
-    <div class="bg-gradient-to-r from-[#1B4332] to-[#40916C] p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+    <div class="bg-gradient-to-r from-[#1B4332] to-[#40916C] p-8 rounded-3xl text-white shadow-xl relative overflow-hidden mb-6">
         <div class="absolute -right-10 -bottom-10 opacity-10">
             <i class="fas fa-calendar-check text-[200px]"></i>
         </div>
@@ -91,7 +91,7 @@
     </div>
 
     {{-- Bagian Grafik --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Distribusi Penjualan Bibit</h3>
             <div class="h-64 relative border-2 border-gray-50 rounded-lg">

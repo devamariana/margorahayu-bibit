@@ -148,10 +148,10 @@
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar'], 
+                labels: {!! json_encode($chartLabels) !!}, 
                 datasets: [{
                     label: 'Pengambilan (kg)',
-                    data: [10, 25, 15, 30, 20, 45], 
+                    data: {!! json_encode($chartData) !!}, 
                     borderColor: '#2D6A4F', 
                     backgroundColor: 'rgba(45, 106, 79, 0.1)',
                     borderWidth: 3,

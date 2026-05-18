@@ -3,19 +3,23 @@
 @section('title', 'Kelola Data Lahan Petani')
 
 @section('content')
-<div class="space-y-6">
+<div class="flex flex-col h-full overflow-hidden">
     {{-- Notifikasi Sukses via Layout (Global SweetAlert2) --}}
-    <div class="flex justify-end items-center">
-        <div class="relative w-full md:w-80">
-            <input type="text" 
-                   placeholder="Cari nama pemilik lahan..." 
-                   class="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm bg-white text-sm">
-            <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+    <div class="flex-none">
+        <div class="flex justify-end items-center mb-4">
+            <form action="{{ route('admin.data_lahan') }}" method="GET" class="relative w-full md:w-80">
+                <input type="text" 
+                       name="search"
+                       value="{{ request('search') }}"
+                       placeholder="Cari lahan (blok/petani)..." 
+                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm bg-white text-xs">
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </form>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto overflow-y-auto max-h-[600px] text-xs relative">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+        <div class="overflow-x-auto overflow-y-auto flex-1 relative custom-scrollbar">
             <table class="w-full text-left border-collapse">
                 <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider sticky top-0 z-10">
                     <tr>
@@ -74,14 +78,14 @@
                                     <form action="{{ route('admin.verifikasi_lahan', $l->id) }}" method="POST">
                                         @csrf
                                         <input type="hidden" name="status" value="disetujui">
-                                        <button type="button" onclick="confirmAction(this, 'Setujui data lahan ini?')" title="Setujui Lahan" class="w-8 h-8 bg-[#2D6A4F] hover:bg-green-700 text-white rounded shadow-sm flex items-center justify-center transition">
+                                        <button type="button" onclick="confirmActionLahan(this, 'Setujui data lahan ini?')" title="Setujui Lahan" class="w-8 h-8 bg-[#2D6A4F] hover:bg-green-700 text-white rounded shadow-sm flex items-center justify-center transition">
                                             <i class="fas fa-check text-xs"></i>
                                         </button>
                                     </form>
                                     <form action="{{ route('admin.verifikasi_lahan', $l->id) }}" method="POST">
                                         @csrf
                                         <input type="hidden" name="status" value="ditolak">
-                                        <button type="button" onclick="confirmAction(this, 'Tolak data lahan ini?', 'warning')" title="Tolak Lahan" class="w-8 h-8 bg-red-500 hover:bg-red-700 text-white rounded shadow-sm flex items-center justify-center transition">
+                                        <button type="button" onclick="confirmActionLahan(this, 'Tolak data lahan ini?', 'warning')" title="Tolak Lahan" class="w-8 h-8 bg-red-500 hover:bg-red-700 text-white rounded shadow-sm flex items-center justify-center transition">
                                             <i class="fas fa-times text-xs"></i>
                                         </button>
                                     </form>
@@ -101,6 +105,60 @@
                 </tbody>
             </table>
         </div>
+        <div class="p-4 bg-gray-50 border-t border-gray-100">
+            {{ $lahans->appends(['search' => request('search')])->links() }}
+        </div>
     </div>
 </div>
+@push('scripts')
+<script>
+    function confirmActionLahan(button, message, type = 'question') {
+        const form = button.closest('form');
+        const status = form.querySelector('input[name="status"]').value;
+
+        if (status === 'ditolak') {
+            Swal.fire({
+                title: 'Alasan Penolakan',
+                input: 'textarea',
+                inputLabel: 'Berikan alasan mengapa lahan ini ditolak',
+                inputPlaceholder: 'Contoh: Luas lahan tidak valid atau lokasi tidak ditemukan...',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Tolak Lahan',
+                cancelButtonText: 'Batal',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'Anda harus memberikan alasan penolakan!'
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'catatan';
+                    input.value = result.value;
+                    form.appendChild(input);
+                    form.submit();
+                }
+            });
+        } else {
+            Swal.fire({
+                title: 'Konfirmasi',
+                text: message,
+                icon: type,
+                showCancelButton: true,
+                confirmButtonColor: '#2D6A4F',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Lanjutkan!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        }
+    }
+</script>
+@endpush
 @endsection

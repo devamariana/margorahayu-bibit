@@ -24,6 +24,7 @@ class Lahan extends Model
         'lokasi',
         'rencana_bibit', // Ditambahkan agar tidak error saat insert
         'status',
+        'catatan_admin',
     ];
 
     /**

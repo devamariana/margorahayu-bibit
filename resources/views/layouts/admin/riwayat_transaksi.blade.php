@@ -3,9 +3,9 @@
 @section('title', 'Monitor Riwayat Transaksi')
 
 @section('content')
-<div class="space-y-6">
+<div class="flex flex-col h-full overflow-hidden">
     {{-- Row 1: Status & Title --}}
-    <div class="sticky top-0 z-20 bg-[#F0F7F2]/95 backdrop-blur-sm pt-2 pb-6">
+    <div class="z-20 bg-[#F0F7F2]/95 backdrop-blur-sm pt-2 pb-6 mb-4">
         <div class="flex flex-col md:flex-row justify-between items-center gap-4">
         <h2 class="text-xl font-bold text-gray-800 uppercase tracking-tight">Monitor Riwayat Transaksi</h2>
         <div class="flex items-center gap-2 text-green-600 font-medium text-[10px] bg-green-50 px-3 py-1 rounded-full border border-green-100">
@@ -15,7 +15,7 @@
     </div>
 
     {{-- Row 2: Search & Filters --}}
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row justify-between items-center gap-4">
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row justify-between items-center gap-4 mb-4">
         <div class="w-full lg:w-1/3">
             <div class="relative group">
                 <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#2D6A4F] transition-colors"></i>
@@ -55,8 +55,8 @@
     </div>
 </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] text-xs relative">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+        <div class="overflow-x-auto overflow-y-auto flex-1 relative custom-scrollbar">
             <table class="w-full text-left border-collapse">
                 <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider sticky top-0 z-10">
                     <tr>

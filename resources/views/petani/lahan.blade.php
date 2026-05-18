@@ -88,7 +88,12 @@
                         @if($lahan->status == 'disetujui')
                             <span class="px-3 py-1 bg-green-100 text-green-700 font-bold rounded-lg text-xs">DISETUJUI</span>
                         @elseif($lahan->status == 'ditolak')
-                            <span class="px-3 py-1 bg-red-100 text-red-700 font-bold rounded-lg text-xs">DITOLAK</span>
+                            <div class="flex flex-col items-center gap-1">
+                                <span class="px-3 py-1 bg-red-100 text-red-700 font-bold rounded-lg text-xs">DITOLAK</span>
+                                @if($lahan->catatan_admin)
+                                    <span class="text-[9px] text-red-500 italic max-w-[120px] leading-tight">"{{ $lahan->catatan_admin }}"</span>
+                                @endif
+                            </div>
                         @else
                             <span class="px-3 py-1 bg-orange-100 text-orange-700 font-bold rounded-lg text-xs">PENDING</span>
                         @endif
