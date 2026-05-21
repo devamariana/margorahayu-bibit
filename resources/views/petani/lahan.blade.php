@@ -12,9 +12,15 @@
                 <h1 class="text-3xl font-extrabold text-[#1B4332] tracking-tight text-uppercase">DATA LAHAN PERTANIAN</h1>
                 <p class="text-gray-500 text-sm">Kelola semua aset lahan yang Anda miliki di sini.</p>
             </div>
-            <button onclick="toggleModal()" class="bg-[#2D6A4F] hover:bg-[#1B4332] text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition transform hover:scale-105">
-                <i class="fas fa-plus mr-2"></i> Tambah Lahan Baru
-            </button>
+            @if(($petani->status ?? '') !== 'disetujui')
+                <button onclick="showUnverifiedWarning()" class="bg-gray-400 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition cursor-not-allowed">
+                    <i class="fas fa-plus mr-2"></i> Tambah Lahan Baru
+                </button>
+            @else
+                <button onclick="toggleModal()" class="bg-[#2D6A4F] hover:bg-[#1B4332] text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition transform hover:scale-105">
+                    <i class="fas fa-plus mr-2"></i> Tambah Lahan Baru
+                </button>
+            @endif
         </div>
     </div>
 
@@ -46,7 +52,7 @@
                     <th class="px-6 py-4 text-xs font-bold uppercase">No</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase">Nama/Blok Lahan</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Luas (m²)</th>
-                    <th class="px-6 py-4 text-xs font-bold uppercase text-center">Rencana Bibit</th>
+
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Bibit yang Dibeli</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Status</th>
                     <th class="px-6 py-4 text-xs font-bold uppercase text-center">Aksi</th>
@@ -61,14 +67,12 @@
                         <span class="text-[10px] text-gray-400 uppercase tracking-widest italic">Lokasi Pertanian</span>
                     </td>
                     <td class="px-6 py-4 text-center font-black text-[#2D6A4F]">{{ $lahan->luas_lahan }}</td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold uppercase">{{ $lahan->rencana_bibit ?? '-' }}</span>
-                    </td>
+
                     <td class="px-6 py-4 text-center">
                         @php
-                            $bibitDibeli = $lahan->transaksi->where('status_pembayaran', 'sukses')
+                            $bibitDibeli = $lahan->transaksi->whereIn('status_pembayaran', ['sukses', 'lunas'])
                                 ->filter(function($t) {
-                                    return $t->bibit && $t->bibit->is_buka;
+                                    return $t->bibit;
                                 })
                                 ->pluck('bibit.nama_bibit')
                                 ->unique();
@@ -144,11 +148,7 @@
                         class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
                     <input type="hidden" name="luas_lahan" id="luas_lahan_real">
                 </div>
-                <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Rencana Bibit yang Ditanam</label>
-                    <input type="text" name="rencana_bibit" required placeholder="Contoh: Padi, Jagung, atau Kedelai" 
-                        class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
-                </div>
+
             </div>
             <button type="submit" class="w-full mt-8 bg-[#2D6A4F] text-white p-4 rounded-2xl font-black shadow-lg hover:bg-[#1B4332] transition tracking-widest uppercase">
                 SIMPAN DATA LAHAN
@@ -176,6 +176,25 @@
     function toggleModal() {
         const modal = document.getElementById('modalLahan');
         modal.classList.toggle('hidden');
+    }
+
+    function showUnverifiedWarning() {
+        Swal.fire({
+            title: '<div class="text-xl font-black text-red-600 uppercase tracking-tighter">Akun Belum Terverifikasi</div>',
+            html: `
+                <div class="py-2 text-sm text-gray-600 leading-relaxed text-center">
+                    Mohon maaf, Anda belum dapat menambahkan lahan baru.<br>
+                    Silakan lengkapi biodata Anda di halaman <b>Profil Petani</b>, unggah berkas KTP & KK, dan tunggu persetujuan oleh Ketua Kelompok Tani (Admin).
+                </div>
+            `,
+            icon: 'warning',
+            confirmButtonColor: '#2D6A4F',
+            confirmButtonText: 'OKE, MENGERTI',
+            customClass: {
+                popup: 'rounded-[2rem] border-none shadow-2xl',
+                confirmButton: 'rounded-xl px-8 py-3 text-xs font-black tracking-widest uppercase shadow-lg shadow-green-100'
+            }
+        });
     }
 
 </script>

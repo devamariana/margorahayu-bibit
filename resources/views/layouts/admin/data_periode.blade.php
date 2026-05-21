@@ -4,26 +4,28 @@
 
 @section('content')
 <div class="flex flex-col h-full overflow-hidden">
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-        <div class="relative w-full md:w-80">
-            <form action="{{ route('admin.data_periode') }}" method="GET" class="flex">
-                <input type="text" 
-                       name="search"
-                       value="{{ request('search') }}"
-                       placeholder="Cari tahun periode..." 
-                       class="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm bg-white">
-                <button type="submit" class="absolute right-0 top-0 bottom-0 px-3 text-gray-500 hover:text-[#2D6A4F]">
-                    <i class="fas fa-search"></i>
-                </button>
-            </form>
+    <div class="flex-none pt-2 pb-6 mb-4">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="relative w-full md:w-80">
+                <form action="{{ route('admin.data_periode') }}" method="GET" class="flex">
+                    <input type="text" 
+                           name="search"
+                           value="{{ request('search') }}"
+                           placeholder="Cari tahun periode..." 
+                           class="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm bg-white">
+                    <button type="submit" class="absolute right-0 top-0 bottom-0 px-3 text-gray-500 hover:text-[#2D6A4F]">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+            
+            <button onclick="document.getElementById('modalPeriode').classList.remove('hidden')" class="bg-[#007BFF] hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition duration-300">
+                <i class="fas fa-plus text-sm"></i> Tambah Periode
+            </button>
         </div>
-        
-        <button onclick="document.getElementById('modalPeriode').classList.remove('hidden')" class="bg-[#007BFF] hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition duration-300">
-            <i class="fas fa-plus text-sm"></i> Tambah Periode
-        </button>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-fit max-h-[calc(100vh-220px)]">
         <div class="overflow-x-auto overflow-y-auto flex-1 relative custom-scrollbar">
             <table class="w-full text-left border-collapse">
                 <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider sticky top-0 z-10">
@@ -39,44 +41,60 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($periodes as $index => $p)
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 text-gray-600 font-medium">{{ $index + 1 }}</td>
-                        <td class="p-4 font-bold text-gray-800">{{ $p->tahun }}</td>
-                        <td class="p-4 text-gray-600">{{ \Carbon\Carbon::parse($p->tanggal_mulai)->format('d M Y') }}</td>
-                        <td class="p-4 text-gray-600">{{ \Carbon\Carbon::parse($p->tanggal_selesai)->format('d M Y') }}</td>
+                    <tr class="hover:bg-gray-50/80 transition-all duration-200">
+                        <td class="p-4 text-gray-500 font-semibold text-sm">{{ $index + 1 }}</td>
+                        <td class="p-4 font-black text-gray-800 text-sm tracking-tight">{{ $p->tahun }}</td>
                         <td class="p-4">
-                            <div class="space-y-1">
-                                <div class="flex items-center gap-2 text-[10px] font-bold text-gray-500">
-                                    <i class="fas fa-shopping-cart text-blue-500 w-3"></i>
-                                    <span>{{ $p->total_transaksi }} Transaksi</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-[10px] font-bold text-gray-500">
-                                    <i class="fas fa-seedling text-green-500 w-3"></i>
-                                    <span>{{ number_format($p->total_bibit, 1) }} Kg</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-[10px] font-bold text-gray-500">
-                                    <i class="fas fa-wallet text-orange-500 w-3"></i>
-                                    <span>Rp {{ number_format($p->total_dana, 0, ',', '.') }}</span>
-                                </div>
+                            <span class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                <i class="far fa-calendar-alt text-gray-400 text-[10px]"></i>
+                                {{ \Carbon\Carbon::parse($p->tanggal_mulai)->format('d M Y') }}
+                            </span>
+                        </td>
+                        <td class="p-4">
+                            <span class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                <i class="far fa-calendar-check text-gray-400 text-[10px]"></i>
+                                {{ \Carbon\Carbon::parse($p->tanggal_selesai)->format('d M Y') }}
+                            </span>
+                        </td>
+                        <td class="p-4">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="inline-flex items-center gap-1.5 text-blue-800 bg-blue-50/80 px-2.5 py-1 rounded-lg font-bold text-[10px] w-fit border border-blue-100 shadow-sm">
+                                    <i class="fas fa-shopping-cart text-blue-500 text-[9px]"></i>
+                                    {{ $p->total_transaksi }} Transaksi
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 text-emerald-800 bg-emerald-50/80 px-2.5 py-1 rounded-lg font-bold text-[10px] w-fit border border-emerald-100 shadow-sm">
+                                    <i class="fas fa-seedling text-emerald-500 text-[9px]"></i>
+                                    {{ number_format($p->total_bibit, 1) }} Kg
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 text-amber-800 bg-amber-50/80 px-2.5 py-1 rounded-lg font-bold text-[10px] w-fit border border-amber-100 shadow-sm">
+                                    <i class="fas fa-wallet text-amber-500 text-[9px]"></i>
+                                    Rp {{ number_format($p->total_dana, 0, ',', '.') }}
+                                </span>
                             </div>
                         </td>
                         <td class="p-4">
                             @if($p->status == 'aktif')
-                                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold text-[10px] uppercase">AKTIF</span>
+                                <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-black text-[10px] uppercase border border-emerald-200 tracking-wider shadow-sm">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    AKTIF
+                                </span>
                             @else
-                                <span class="bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-bold text-[10px] uppercase">BERAKHIR</span>
+                                <span class="inline-flex items-center gap-1.5 bg-gray-50 text-gray-500 px-3 py-1 rounded-full font-bold text-[10px] uppercase border border-gray-200 tracking-wider">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                                    BERAKHIR
+                                </span>
                             @endif
                         </td>
                         <td class="p-4">
-                            <div class="flex justify-center gap-2">
-                                <button onclick="openEditModal({{ $p->id }}, '{{ $p->tahun }}', '{{ $p->tanggal_mulai }}', '{{ $p->tanggal_selesai }}', '{{ $p->status }}')" title="Edit" class="w-8 h-8 bg-[#FFC107] hover:bg-yellow-600 text-white rounded shadow-sm flex items-center justify-center transition">
-                                    <i class="fas fa-edit text-[10px]"></i>
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="openEditModal({{ $p->id }}, '{{ $p->tahun }}', '{{ $p->tanggal_mulai }}', '{{ $p->tanggal_selesai }}', '{{ $p->status }}')" title="Edit" class="w-8 h-8 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center transition border border-amber-200 shadow-sm">
+                                    <i class="fas fa-edit text-xs"></i>
                                 </button>
                                 <form action="{{ route('admin.data_periode.destroy', $p->id) }}" method="POST" onsubmit="return confirm('Hapus periode ini?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" title="Hapus" class="w-8 h-8 bg-[#DC3545] hover:bg-red-600 text-white rounded shadow-sm flex items-center justify-center transition">
-                                        <i class="fas fa-trash-alt text-[10px]"></i>
+                                    <button type="submit" title="Hapus" class="w-8 h-8 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg flex items-center justify-center transition border border-red-200 shadow-sm">
+                                        <i class="fas fa-trash-alt text-xs"></i>
                                     </button>
                                 </form>
                             </div>

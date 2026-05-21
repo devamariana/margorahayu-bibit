@@ -58,37 +58,7 @@
         </div>
     </div>
 
-    {{-- STATISTIK PERIODE AKTIF --}}
-    <div class="bg-gradient-to-r from-[#1B4332] to-[#40916C] p-8 rounded-3xl text-white shadow-xl relative overflow-hidden mb-6">
-        <div class="absolute -right-10 -bottom-10 opacity-10">
-            <i class="fas fa-calendar-check text-[200px]"></i>
-        </div>
-        <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div class="space-y-2 text-center md:text-left">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-green-200 opacity-80">Informasi Musim Tanam</p>
-                <h2 class="text-3xl font-black tracking-tight">
-                    @if($periodeAktif)
-                        PERIODE AKTIF: {{ $periodeAktif->tahun }}
-                    @else
-                        BELUM ADA PERIODE AKTIF
-                    @endif
-                </h2>
-                <p class="text-sm text-green-50 max-w-md opacity-90">
-                    Berikut adalah rekap perolehan transaksi khusus untuk periode penanaman yang sedang berlangsung saat ini.
-                </p>
-            </div>
-            <div class="flex gap-4">
-                <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl min-w-[160px] text-center transition hover:bg-white/20">
-                    <p class="text-[9px] font-black uppercase tracking-widest mb-1 text-green-100">Bibit Keluar</p>
-                    <p class="text-2xl font-black">{{ number_format($bibitPeriodeAktif, 1) }} <span class="text-[10px] font-medium">Kg</span></p>
-                </div>
-                <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl min-w-[160px] text-center transition hover:bg-white/20">
-                    <p class="text-[9px] font-black uppercase tracking-widest mb-1 text-green-100">Dana Masuk</p>
-                    <p class="text-2xl font-black">Rp {{ number_format($danaPeriodeAktif, 0, ',', '.') }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     {{-- Bagian Grafik --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

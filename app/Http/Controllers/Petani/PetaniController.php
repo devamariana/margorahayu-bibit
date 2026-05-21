@@ -142,20 +142,24 @@ class PetaniController extends Controller
      */
     public function storeLahan(Request $request)
     {
+        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
+
+        // VALIDASI AKUN TERVERIFIKASI
+        if (!$petani || $petani->status !== 'disetujui') {
+            return back()->with('error', 'Gagal menambahkan lahan. Akun Anda belum terverifikasi oleh Admin!');
+        }
+
         $request->validate([
             'nama_blok' => 'required|string|max:255',
             'luas_lahan' => 'required|numeric|min:1',
-            'rencana_bibit' => 'required|string|max:255',
         ]);
-
-        $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
         $lahan = Lahan::create([
             'petani_id' => $petani->id,
             'nama_blok' => $request->nama_blok,
             'luas_lahan' => $request->luas_lahan,
             'jenis_tanah' => $request->jenis_tanah ?? '-',
-            'rencana_bibit' => $request->rencana_bibit,
+            'rencana_bibit' => '-',
         ]);
 
         // Beritahu admin
