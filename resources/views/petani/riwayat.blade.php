@@ -77,10 +77,10 @@
                     <tr class="hover:bg-green-50/30 transition group">
                         <td class="p-3 text-xs text-gray-600 font-medium whitespace-nowrap">{{ $r->created_at->format('d-m-Y') }}</td>
                         <td class="p-3">
-                            <span class="text-xs font-black text-[#2D6A4F] block group-hover:text-green-700 transition-colors leading-tight">{{ $r->lahan->nama_blok ?? 'Lahan Dihapus' }}</span>
-                            <span class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Luas: {{ $r->lahan->luas_lahan ?? 0 }} m²</span>
+                            <span class="text-xs font-black text-[#2D6A4F] block group-hover:text-green-700 transition-colors leading-tight">{{ $r->lahan?->nama_blok ?? 'Lahan Dihapus' }}</span>
+                            <span class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Luas: {{ $r->lahan?->luas_lahan ?? 0 }} m²</span>
                         </td>
-                        <td class="p-3 text-xs font-bold text-gray-800 leading-tight">{{ $r->bibit->nama_bibit ?? 'Bibit Dihapus' }}</td>
+                        <td class="p-3 text-xs font-bold text-gray-800 leading-tight">{{ $r->bibit?->nama_bibit ?? 'Bibit Dihapus' }}</td>
                         <td class="p-3 text-xs text-gray-600 text-center font-bold whitespace-nowrap">{{ number_format($r->jumlah_beli, 0, ',', '.') }} kg</td>
                         <td class="p-3 text-xs font-black text-gray-800 whitespace-nowrap">Rp {{ number_format($r->total_harga, 0, ',', '.') }}</td>
                         <td class="p-3 text-center whitespace-nowrap">
@@ -97,7 +97,7 @@
                             @endif
                         </td>
                         <td class="p-3 text-center">
-                            <button onclick="showDetail({{ json_encode($r) }}, '{{ $r->lahan->nama_blok ?? 'Dihapus' }}', '{{ $r->bibit->nama_bibit ?? 'Dihapus' }}')" 
+                            <button onclick="showDetail({{ json_encode($r) }}, '{{ $r->lahan?->nama_blok ?? 'Dihapus' }}', '{{ $r->bibit?->nama_bibit ?? 'Dihapus' }}')" 
                                     class="px-4 py-1.5 bg-white text-[#2D6A4F] border border-[#2D6A4F] rounded-lg text-[10px] font-black uppercase hover:bg-[#2D6A4F] hover:text-white transition-all flex items-center justify-center gap-2 mx-auto">
                                 <i class="fas fa-info-circle"></i>
                                 <span>Detail</span>

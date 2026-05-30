@@ -74,15 +74,15 @@
                         data-status="{{ $t->status_pembayaran }}" 
                         data-periode="{{ $t->created_at->format('Y-m') }}"
                         data-order-id="{{ $t->order_id }}"
-                        data-nama="{{ strtolower($t->petani->nama_lengkap ?? '') }}">
+                        data-nama="{{ strtolower($t->petani?->nama_lengkap ?? '') }}">
                         <td class="p-4 text-gray-600">
                             {{ $t->created_at->format('d/m/Y') }}<br>
                             <span class="text-[10px] font-black text-gray-400">{{ $t->order_id }}</span>
                         </td>
-                        <td class="p-4 font-bold text-gray-800 uppercase">{{ $t->petani->nama_lengkap ?? 'Petani Dihapus' }}</td>
+                        <td class="p-4 font-bold text-gray-800 uppercase">{{ $t->petani?->nama_lengkap ?? 'Petani Dihapus' }}</td>
                         <td class="p-4 text-gray-600">
-                            {{ $t->bibit->nama_bibit ?? 'Bibit Dihapus' }} ({{ $t->jumlah_beli }}kg)<br>
-                            <span class="text-[10px] text-gray-400">Lahan: {{ $t->lahan->nama_blok ?? 'Dihapus' }}</span>
+                            {{ $t->bibit?->nama_bibit ?? 'Bibit Dihapus' }} ({{ $t->jumlah_beli }}kg)<br>
+                            <span class="text-[10px] text-gray-400">Lahan: {{ $t->lahan?->nama_blok ?? 'Dihapus' }}</span>
                         </td>
                         <td class="p-4 font-bold text-[#2D6A4F] tracking-tight">
                             Rp {{ number_format($t->total_harga, 0, ',', '.') }}<br>

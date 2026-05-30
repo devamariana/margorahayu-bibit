@@ -82,8 +82,8 @@
                 <td>{{ $idx + 1 }}</td>
                 <td>{{ $t->order_id ?? '-' }}</td>
                 <td>{{ $t->updated_at->format('d-m-Y') }}</td>
-                <td class="text-left">{{ strtoupper($t->petani->nama_lengkap ?? '-') }}</td>
-                <td>{{ $t->bibit->nama_bibit ?? '-' }}</td>
+                <td class="text-left">{{ strtoupper($t->petani?->nama_lengkap ?? '-') }}</td>
+                <td>{{ $t->bibit?->nama_bibit ?? '-' }}</td>
                 <td>{{ number_format($t->jumlah_beli) }}</td>
                 <td class="text-right">Rp {{ number_format($t->total_harga, 0, ',', '.') }}</td>
             </tr>

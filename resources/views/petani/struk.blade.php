@@ -59,16 +59,16 @@
     <div style="font-size: 10px;">
         <div>TGL: {{ $transaksi->created_at->format('d/m/Y H:i') }}</div>
         <div>TRX: {{ $transaksi->order_id }}</div>
-        <div>PLG: {{ $petani->nama_lengkap }}</div>
+        <div>PLG: {{ $transaksi->petani?->nama_lengkap ?? 'Tidak diketahui' }}</div>
     </div>
 
     <div class="divider"></div>
 
     <div class="item">
-        <span>{{ $transaksi->bibit->nama_bibit ?? 'Bibit' }}</span>
+        <span>{{ $transaksi->bibit?->nama_bibit ?? 'Bibit' }}</span>
     </div>
     <div class="item">
-        <span>{{ $transaksi->jumlah_beli }} Kg x @ Rp {{ number_format($transaksi->bibit->harga_subsidi, 0, ',', '.') }}</span>
+        <span>{{ $transaksi->jumlah_beli }} Kg x @ Rp {{ number_format($transaksi->bibit?->harga_subsidi ?? 0, 0, ',', '.') }}</span>
         <span>Rp {{ number_format($transaksi->total_harga, 0, ',', '.') }}</span>
     </div>
 

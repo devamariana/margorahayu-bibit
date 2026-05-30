@@ -12,7 +12,7 @@
     <div class="flex items-center gap-4">
         <div class="text-right hidden sm:block">
             {{-- Menampilkan Nama Lengkap dari Profil jika ada, jika tidak pakai username --}}
-                {{ $petani->nama_lengkap ?? (Auth::guard('petani')->user() ?? Auth::user())->username ?? 'Petani' }}
+                {{ $petani?->nama_lengkap ?? (Auth::guard('petani')->user() ?? Auth::user())->username ?? 'Petani' }}
             
             {{-- LOGIKA STATUS VERIFIKASI - Disinkronkan ke variabel $petani --}}
             @if(isset($petani) && $petani->status == 'disetujui')
@@ -121,7 +121,7 @@
                             <i class="fas fa-user text-3xl"></i>
                         </div>
                     </div>
-                    <h3 class="font-bold text-gray-800 text-base leading-tight">{{ $petani->nama_lengkap ?? (Auth::guard('petani')->user() ?? Auth::user())->username ?? 'Petani' }}</h3>
+                    <h3 class="font-bold text-gray-800 text-base leading-tight">{{ $petani?->nama_lengkap ?? (Auth::guard('petani')->user() ?? Auth::user())->username ?? 'Petani' }}</h3>
                     <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">ID Petani: #{{ str_pad($petani->id, 4, '0', STR_PAD_LEFT) }}</p>
                     
                     @if(isset($petani) && $petani->status == 'disetujui')
@@ -143,7 +143,7 @@
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="text-[10px] font-bold text-gray-400 uppercase">WhatsApp</span>
-                        <span class="text-xs font-bold text-gray-700 tracking-wider">{{ $petani->no_hp ?? '-' }}</span>
+                        <span class="text-xs font-bold text-gray-700 tracking-wider">{{ $petani?->no_hp ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="text-[10px] font-bold text-gray-400 uppercase">Gabung Sejak</span>

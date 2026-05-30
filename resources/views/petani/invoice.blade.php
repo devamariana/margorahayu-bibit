@@ -27,9 +27,9 @@
         <tr>
             <td width="50%">
                 <strong>Dibayarkan Oleh:</strong><br>
-                {{ $petani->nama_lengkap }}<br>
-                NIK: {{ $petani->nik }}<br>
-                No. WA: {{ $petani->no_hp }}
+                {{ $petani?->nama_lengkap ?? 'Tidak Diketahui' }}<br>
+                NIK: {{ $petani?->nik ?? '-' }}<br>
+                No. WA: {{ $petani?->no_hp ?? '-' }}
             </td>
             <td width="50%" style="text-align: right;">
                 <strong>Detail Transaksi:</strong><br>

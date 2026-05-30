@@ -312,7 +312,6 @@ class PetaniController extends Controller
         $order_id = 'TRX-' . time() . '-' . $petani->id;
 
         // Buat Transaksi
-        // Tentukan status awal pembayaran
         $status_awal = 'pending';
         if ($request->metode_pembayaran == 'tunai') {
             $status_awal = 'menunggu_pembayaran';
@@ -528,6 +527,13 @@ class PetaniController extends Controller
         $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
         $transaksi = Transaksi::where('id', $id)->where('petani_id', $petani->id)->firstOrFail();
 
+        // Jika pembayaran bukan via Midtrans, tandai langsung sebagai sukses
+        if ($transaksi->metode_pembayaran != 'midtrans') {
+            $transaksi->status_pembayaran = 'sukses';
+            $transaksi->save();
+            return redirect()->route('petani.riwayat')->with('success', 'Pembayaran berhasil! Status transaksi kini lunas.');
+        }
+
         // Cek status satu kali lagi untuk memastikan database terupdate segera setelah redirect
         try {
             \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
@@ -685,22 +691,18 @@ class PetaniController extends Controller
     /**
      * Cetak Struk Ala Kasir (Thermal)
      */
+    
     public function cetakStruk($id)
     {
-        $user = Auth::user();
-        $query = Transaksi::with(['lahan', 'bibit', 'petani'])->where('id', $id);
-
-        if ($user->role !== 'admin') {
-            $petani = Petani::where('user_id', $user->id)->first();
-            if (!$petani) abort(403);
-            $query->where('petani_id', $petani->id);
-        }
-
-        $transaksi = $query->firstOrFail();
-        $petani = $transaksi->petani;
-
+        // Get the transaction first
+        $transaksi = Transaksi::with(['lahan', 'bibit', 'petani'])->where('id', $id)->firstOrFail();
+        // Ensure we have the related petani; fallback to direct query if relationship missing
+        $petani = $transaksi->petani ?? Petani::where('id', $transaksi->petani_id)->first();
+        // If still null, abort with 404 for safety
+        if (!$petani) abort(404, 'Petani not found for this transaction');
         return view('petani.struk', compact('transaksi', 'petani'));
     }
+
 
     /**
      * Tandai Semua Notifikasi Sudah Dibaca

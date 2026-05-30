@@ -71,6 +71,11 @@
                             Kirim Bukti Pembayaran
                         </button>
                     </form>
+                @if($transaksi->metode_pembayaran != 'midtrans')
+                <a href="{{ route('petani.sukses_bayar', $transaksi->id) }}" class="w-full bg-[#28A745] hover:bg-[#218838] text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-sm flex items-center justify-center gap-3 mt-4">
+                    <i class="fas fa-check"></i> Konfirmasi Pembayaran
+                </a>
+                @endif
                 @else
                     <div class="bg-green-50 p-4 rounded-xl text-center border border-green-100">
                         <i class="fas fa-clock text-green-600 text-2xl mb-2"></i>
@@ -104,9 +109,19 @@
                         <a href="{{ route('petani.struk', $transaksi->id) }}" target="_blank" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-[10px] flex items-center justify-center gap-2">
                             <i class="fas fa-print"></i> Cetak Struk
                         </a>
+                
                     </div>
                     <p class="text-[10px] text-orange-400 italic">Simpan atau screenshot layar ini untuk ditunjukkan ke petugas.</p>
                 </div>
+            @endif
+            @if($transaksi->metode_pembayaran == 'tunai')
+                <a href="{{ route('petani.sukses_bayar', $transaksi->id) }}" class="w-full bg-[#28A745] hover:bg-[#218838] text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-sm flex items-center justify-center gap-3 mt-4">
+                    <i class="fas fa-check-circle"></i> SAYA SUDAH MEMBAYAR
+                </a>
+            @elseif($transaksi->metode_pembayaran != 'midtrans')
+                <a href="{{ route('petani.riwayat') }}" class="w-full bg-[#28A745] hover:bg-[#218838] text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-sm flex items-center justify-center gap-3 mt-4">
+                    <i class="fas fa-receipt"></i> Lihat Riwayat Pembayaran
+                </a>
             @endif
 
             <form action="{{ route('petani.batal_bayar', $transaksi->id) }}" method="POST" class="mt-6">
