@@ -31,6 +31,7 @@
                         <th class="p-4 border-b">Username</th>
                         <th class="p-4 border-b">Nama Lengkap</th>
                         <th class="p-4 border-b">NIK</th>
+                        <th class="p-4 border-b">Alamat</th>
                         <th class="p-4 border-b">Luas Lahan</th>
                         <th class="p-4 border-b">Status</th>
                         <th class="p-4 border-b text-center">Identitas</th>
@@ -53,6 +54,11 @@
                         {{-- PERBAIKAN NIK: Pastikan memanggil variabel $p->nik --}}
                         <td class="p-4 text-gray-600 font-mono">
                             {{ $p->nik ?? 'Belum Diisi' }}
+                        </td>
+
+                        {{-- Alamat Petani --}}
+                        <td class="p-4 text-gray-700">
+                            {{ $p->alamat ?? '-' }}
                         </td>
                         
                         <td class="p-4 font-bold text-[#2D6A4F]">

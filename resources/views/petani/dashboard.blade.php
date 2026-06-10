@@ -65,29 +65,55 @@
 
 
 
-    {{-- CHART (MASIH DUMMY) --}}
-    <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
-        <div class="absolute top-0 right-0 p-8 opacity-5">
-            <i class="fas fa-chart-line text-8xl text-green-600"></i>
+    {{-- CHART: kosongkan jika belum ada pengambilan sukses --}}
+@php
+        // Riwayat $riwayat diambil hanya transaksi sukses.
+        // Jika belum ada, grafik harus kosong.
+        $hasPengambilan = (isset($riwayat) ? $riwayat->count() : 0) > 0;
+    @endphp
+
+
+    @if($hasPengambilan)
+        <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-8 opacity-5">
+                <i class="fas fa-chart-line text-8xl text-green-600"></i>
+            </div>
+            <div class="relative z-10">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <h3 class="text-lg font-black text-gray-800 flex items-center gap-3">
+                        <span class="w-2 h-8 bg-green-500 rounded-full"></span>
+                        Statistik Pengambilan Bibit
+                    </h3>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-green-600"></span>
+                            <span class="text-[10px] font-bold text-gray-400 uppercase">Realisasi (Kg)</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="height: 300px; position: relative;" class="rounded-2xl">
+                    <canvas id="pembelianChart"></canvas>
+                </div>
+            </div>
         </div>
-        <div class="relative z-10">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <h3 class="text-lg font-black text-gray-800 flex items-center gap-3">
+    @else
+        <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-8 opacity-5">
+                <i class="fas fa-chart-line text-8xl text-green-600"></i>
+            </div>
+            <div class="relative z-10">
+                <h3 class="text-lg font-black text-gray-800 flex items-center gap-3 mb-6">
                     <span class="w-2 h-8 bg-green-500 rounded-full"></span>
                     Statistik Pengambilan Bibit
                 </h3>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-green-600"></span>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase">Realisasi (Kg)</span>
+                <div style="height: 300px;" class="rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="text-gray-400 text-sm italic">Belum ada pengambilan bibit sukses. Grafik kosong.</div>
                     </div>
                 </div>
             </div>
-            <div style="height: 300px; position: relative;" class="rounded-2xl">
-                <canvas id="pembelianChart"></canvas>
-            </div>
         </div>
-    </div>
+    @endif
 
     {{-- CUSTOM STYLES FOR ANIMATIONS --}}
     <style>
@@ -115,25 +141,26 @@
                         <th class="p-4 border-b">Status</th>
                     </tr>
                 </thead>
+
+                {{-- Jika belum ada pengambilan sukses, tabel hanya menampilkan pesan kosong --}}
                 <tbody class="text-sm font-medium text-gray-600">
-                    {{-- PERBAIKAN: Loop data dari database --}}
                     @forelse($riwayat as $r)
-                    <tr class="border-b hover:bg-gray-50 transition">
-                        <td class="p-4">{{ $r->created_at->format('d M Y') }}</td>
-                        <td class="p-4 text-gray-800">{{ $r->bibit->nama_bibit ?? 'Bibit' }}</td>
-                        <td class="p-4 font-bold text-gray-700">{{ $r->jumlah_beli }} Kg</td>
-                        <td class="p-4">
-                            <span class="px-2 py-1 rounded-md {{ $r->status_pembayaran == 'sukses' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }} text-[10px] font-bold uppercase">
-                                {{ str_replace('_', ' ', $r->status_pembayaran) }}
-                            </span>
-                        </td>
-                    </tr>
+                        <tr class="border-b hover:bg-gray-50 transition">
+                            <td class="p-4">{{ $r->created_at->format('d M Y') }}</td>
+                            <td class="p-4 text-gray-800">{{ $r->bibit->nama_bibit ?? 'Bibit' }}</td>
+                            <td class="p-4 font-bold text-gray-700">{{ $r->jumlah_beli }} Kg</td>
+                            <td class="p-4">
+                                <span class="px-2 py-1 rounded-md {{ $r->status_pembayaran == 'sukses' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }} text-[10px] font-bold uppercase">
+                                    {{ str_replace('_', ' ', $r->status_pembayaran) }}
+                                </span>
+                            </td>
+                        </tr>
                     @empty
-                    <tr>
-                        <td colspan="4" class="p-8 text-center text-gray-400 italic">
-                            Belum ada riwayat pengambilan bibit.
-                        </td>
-                    </tr>
+                        <tr>
+                            <td colspan="4" class="p-8 text-center text-gray-400 italic">
+                                Belum ada riwayat pengambilan bibit.
+                            </td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>
@@ -144,7 +171,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const ctx = document.getElementById('pembelianChart').getContext('2d');
+        const canvas = document.getElementById('pembelianChart');
+        if (!canvas) return; // jika grafik kosong (canvas tidak dirender)
+
+        const ctx = canvas.getContext('2d');
         new Chart(ctx, {
             type: 'line',
             data: {
@@ -152,7 +182,7 @@
                 datasets: [{
                     label: 'Pengambilan (kg)',
                     data: {!! json_encode($chartData) !!}, 
-                    borderColor: '#2D6A4F', 
+                    borderColor: '#2D6A4F',
                     backgroundColor: 'rgba(45, 106, 79, 0.1)',
                     borderWidth: 3,
                     tension: 0.4,

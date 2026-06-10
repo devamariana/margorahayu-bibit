@@ -9,7 +9,7 @@
     <div class="bg-gradient-to-r from-[#2D6A4F] to-[#1B4332] p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
         <div class="relative z-10">
             <p class="text-green-100 text-sm opacity-90 max-w-2xl">
-                Fitur ini memungkinkan Anda untuk mengalihkan atau mentransfer hak jatah bibit subsidi Anda kepada sesama petani yang lebih membutuhkan.
+                Fitur ini memungkinkan Anda untuk mengembalikan hak jatah bibit subsidi Anda langsung ke Admin.
             </p>
         </div>
         <i class="fas fa-exchange-alt absolute -right-10 -bottom-10 text-[180px] text-white/10 rotate-12"></i>
@@ -19,13 +19,13 @@
         {{-- FORM HIBAH --}}
         <div class="md:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
             <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <i class="fas fa-paper-plane text-green-600"></i> Kirim Transfer Baru
+                <i class="fas fa-paper-plane text-green-600"></i> Kembalikan Jatah ke Admin
             </h3>
             
             <form action="{{ route('petani.proses_transfer') }}" method="POST" class="space-y-6">
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-2">
+                    <div class="space-y-2 md:col-span-2">
                         <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pilih Bibit</label>
                         <select name="bibit_id" onchange="window.location.href='?bibit_id=' + this.value" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800" required>
                             <option value="">-- Pilih Bibit Aktif --</option>
@@ -34,21 +34,10 @@
                             @endforeach
                         </select>
                     </div>
-
-                    <div class="space-y-2">
-                        <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pilih Penerima Transfer</label>
-                        <div class="relative">
-                            <select name="penerima_id" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800 pr-12" required>
-                                <option value="">-- Cari Nama Petani --</option>
-                                @foreach($petaniLain as $pl)
-                                    <option value="{{ $pl->id }}">{{ $pl->nama_lengkap }}</option>
-                                @endforeach
-                            </select>
-                            <div class="absolute inset-y-0 right-0 flex items-center px-5 pointer-events-none text-gray-400">
-                                <i class="fas fa-search"></i>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+                <div class="bg-green-50 border border-green-100 p-4 rounded-2xl text-sm text-green-700 font-bold">
+                    <i class="fas fa-user-shield mr-2"></i>
+                    Jatah akan dikembalikan langsung ke Admin. Tidak perlu memilih petani penerima.
                 </div>
 
                 <div class="space-y-2">
@@ -83,7 +72,7 @@
                 <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex items-start gap-3">
                     <i class="fas fa-info-circle text-orange-500 mt-1"></i>
                     <p class="text-xs text-orange-700 leading-relaxed font-medium">
-                        <strong>Perhatian:</strong> Dengan memproses ini, jatah <strong>{{ $selectedBibit->nama_bibit ?? 'Bibit' }}</strong> Anda akan berkurang secara permanen dan berpindah ke penerima. Tindakan ini tidak dapat dibatalkan.
+                        <strong>Perhatian:</strong> Dengan memproses ini, jatah <strong>{{ $selectedBibit->nama_bibit ?? 'Bibit' }}</strong> Anda akan berkurang secara permanen dan dikembalikan ke Admin. Tindakan ini tidak dapat dibatalkan.
                     </p>
                 </div>
 
@@ -93,7 +82,7 @@
                     @elseif($sisaJatah <= 0)
                         SALDO JATAH KOSONG
                     @else
-                        KONFIRMASI TRANSFER SEKARANG
+                        KEMBALIKAN JATAH KE ADMIN
                         <i class="fas fa-check-circle"></i>
                     @endif
                 </button>
@@ -125,7 +114,7 @@
                                 <i class="fas fa-arrow-up"></i>
                             </div>
                             <div>
-                                <p class="text-[11px] font-bold text-gray-800 leading-none mb-1">{{ $rh->penerima->nama_lengkap }}</p>
+                                <p class="text-[11px] font-bold text-gray-800 leading-none mb-1">{{ $rh->penerima->nama_lengkap ?? 'Admin' }}</p>
                                 <p class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">{{ $rh->bibit->nama_bibit ?? 'Bibit' }}</p>
                                 <p class="text-[8px] text-gray-400">{{ $rh->created_at->format('d/m H:i') }}</p>
                             </div>

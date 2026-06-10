@@ -5,7 +5,7 @@
     <div class="p-6 border-b border-[#40916C] bg-[#1B4332] flex justify-between items-center">
         <div class="flex items-center gap-3">
             <i class="fas fa-user-shield text-[#D8F3DC] text-2xl"></i>
-            <span class="text-sm font-bold tracking-widest uppercase text-[#D8F3DC]">Admin Margo Rahayu</span>
+            <span class="text-sm font-bold tracking-widest uppercase text-[#D8F3DC]">Admin Margo Rahayu II</span>
         </div>
         <!-- Tombol Tutup Sidebar Khusus Mobile -->
         <button onclick="toggleAdminSidebar()" class="md:hidden text-green-100 hover:text-white transition focus:outline-none">
@@ -50,10 +50,16 @@
             <i class="fas fa-map-marked-alt mr-3 group-hover:scale-110 transition text-sm"></i> Data Lahan
         </a>
 
-        {{-- Menu Riwayat Transaksi --}}
+        {{-- Menu Data Penjualan (Monitor Transaksi) --}}
         <a href="{{ route('admin.riwayat_transaksi') }}" 
             class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.riwayat_transaksi') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
-            <i class="fas fa-list-ul mr-3"></i> Riwayat Transaksi
+            <i class="fas fa-shopping-cart mr-3 group-hover:scale-110 transition"></i> Data Penjualan
+        </a>
+
+        {{-- Menu Rekap Laporan (Statistik) --}}
+        <a href="{{ route('admin.laporan') }}" 
+            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.laporan') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
+            <i class="fas fa-file-invoice-dollar mr-3 group-hover:scale-110 transition"></i> Rekap Laporan
         </a>
     </nav>
 

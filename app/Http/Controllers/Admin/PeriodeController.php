@@ -12,14 +12,17 @@ class PeriodeController extends Controller
     {
         $search = $request->input('search');
 
-        $periodes = Periode::latest()
+        $periodes = Periode::with('bibits')->latest()
             ->when($search, function ($query, $search) {
-                return $query->where('tahun', 'like', "%{$search}%");
+                return $query->where('tahun', 'like', "%{$search}%")
+                             ->orWhere('musim', 'like', "%{$search}%"); // Tambah fitur cari berdasarkan musim
             })
             ->paginate(10);
 
         // Tambahkan statistik ringkas untuk tiap periode
         foreach ($periodes as $p) {
+            $p->list_bibit = $p->bibits;
+
             $p->total_transaksi = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
                 ->whereHas('bibit', function($q) use ($p) {
                     $q->where('periode_id', $p->id);
@@ -46,6 +49,7 @@ class PeriodeController extends Controller
     {
         $request->validate([
             'tahun' => 'required',
+            'musim' => 'required|in:penghujan,kemarau', // Validasi input musim baru
             'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
             'status' => 'required|in:aktif,berakhir',
@@ -82,22 +86,28 @@ class PeriodeController extends Controller
             }
         }
 
-        // JIKA SET BERAKHIR: Otomatis tutup distribusi bibit yang terkait periode ini (jika ada relasi)
-        if ($request->status == 'berakhir') {
-            // Karena bibit lama mungkin belum punya periode_id, kita bisa tutup yang is_buka = true secara general 
-            // atau yang tanggalnya masuk dalam range periode ini.
-            \App\Models\Bibit::where('is_buka', true)
-                ->whereBetween('tanggal_buka', [$request->tanggal_mulai, $request->tanggal_selesai])
-                ->update(['is_buka' => false]);
+        // OTOMATISASI: Jika Periode baru AKTIF, buka bibit musim tersebut & tutup musim lainnya
+        if ($request->status == 'aktif') {
+            // Tutup musim lainnya agar pendaftaran transaksi hanya untuk musim terpilih
+            \App\Models\Bibit::where('kategori_musim', '!=', $request->musim)->update(['is_buka' => false]);
+
+            // Buka musim ini
+            \App\Models\Bibit::where('kategori_musim', $request->musim)
+                ->where('stok', '>', 0)
+                ->update([
+                    'is_buka' => true,
+                    'tanggal_buka' => now()
+                ]);
         }
 
-        return back()->with('success', 'Periode Tanam berhasil ditambahkan dan status periode lain telah disesuaikan.');
+        return back()->with('success', 'Periode Tanam berhasil ditambahkan. Distribusi bibit Musim ' . strtoupper($request->musim) . ' otomatis dibuka.');
     }
 
     public function update(Request $request, $id)
     {
         $request->validate([
             'tahun' => 'required',
+            'musim' => 'required|in:penghujan,kemarau', // Validasi input musim saat update
             'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
             'status' => 'required|in:aktif,berakhir',
@@ -122,7 +132,21 @@ class PeriodeController extends Controller
                 ->update(['is_buka' => false]);
         }
 
-        return back()->with('success', 'Data Periode berhasil diperbarui.');
+        // OTOMATIS: Jika periode diubah menjadi AKTIF, pastikan bibit musiman dibuka & lainnya tutup
+        if ($request->status == 'aktif') {
+             // Tutup musim lainnya
+            \App\Models\Bibit::where('kategori_musim', '!=', $periode->musim)->update(['is_buka' => false]);
+
+            // Buka musim ini
+            \App\Models\Bibit::where('kategori_musim', $periode->musim)
+                ->where('stok', '>', 0)
+                ->update([
+                    'is_buka' => true,
+                    'tanggal_buka' => now()
+                ]);
+        }
+
+        return back()->with('success', 'Data Periode berhasil diperbarui. Sinkronisasi stok dan status distribusi bibit telah disesuaikan.');
     }
 
     public function destroy($id)
@@ -133,5 +157,37 @@ class PeriodeController extends Controller
             return back()->with('success', 'Data periode berhasil dihapus!');
         }
         return back()->with('error', 'Data tidak ditemukan.');
+    }
+
+    /**
+     * Fitur Saklar Cepat Musim untuk Periode yang sedang Aktif
+     */
+    public function quickSwitchSeason(Request $request)
+    {
+        $request->validate([
+            'musim' => 'required|in:kemarau,penghujan',
+        ]);
+
+        $periodeAktif = Periode::where('status', 'aktif')->first();
+        
+        if (!$periodeAktif) {
+            return back()->with('error', 'Gagal! Tidak ada periode yang sedang Aktif saat ini.');
+        }
+
+        $periodeAktif->update(['musim' => $request->musim]);
+
+        // SINKRONISASI OTOMATIS BIBIT (Sama seperti logika di update)
+        // 1. Tutup musim lainnya
+        \App\Models\Bibit::where('kategori_musim', '!=', $request->musim)->update(['is_buka' => false]);
+
+        // 2. Buka musim terpilih
+        \App\Models\Bibit::where('kategori_musim', $request->musim)
+            ->where('stok', '>', 0)
+            ->update([
+                'is_buka' => true,
+                'tanggal_buka' => now()
+            ]);
+
+        return back()->with('success', 'Saklar Berhasil! Sekarang sistem berjalan di Musim ' . strtoupper($request->musim));
     }
 }

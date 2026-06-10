@@ -39,7 +39,7 @@
         </div>
         <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
             <p class="text-gray-400 text-xs font-bold uppercase">Estimasi Total Jatah</p>
-            <h3 class="text-2xl font-black text-[#2D6A4F]">{{ ($lahans->sum('luas_lahan') / 100) * 10 }} kg</h3>
+            <h3 class="text-2xl font-black text-[#2D6A4F]">{{ number_format($estimasiJatah, 1) }} kg</h3>
         </div>
     </div>
 

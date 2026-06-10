@@ -13,11 +13,10 @@
 </head>
 <body class="bg-[#F0F7F2] flex items-center justify-center min-h-screen p-6">
 
-    <div class="w-full max-w-[450px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(45,106,79,0.1)] overflow-hidden border border-gray-50">
-        
+    <div class="w-full max-w-[450px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(45,106,79,0.1)] overflow-hidden border border-gray-50 relative">
         <div class="h-2 bg-[#2D6A4F]"></div>
 
-        <div class="p-10">
+        <div class="p-10 pb-6">
             <div class="text-center mb-8">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-[#D8F3DC] rounded-2xl mb-4 shadow-sm">
                     <i class="fas fa-user-plus text-[#2D6A4F] text-2xl"></i>
@@ -116,14 +115,20 @@
                 </div>
             </form>
 
-            <div class="mt-8 text-center border-t border-gray-50 pt-6">
+            <div class="mt-8 text-center border-t border-gray-100 pt-6 space-y-4">
+                <a href="{{ url('/') }}" class="group flex items-center justify-center gap-3 w-full py-3.5 bg-gray-50 text-[#2D6A4F] border border-[#D8F3DC] rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#2D6A4F] hover:text-white hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1">
+                    <i class="fas fa-chevron-left group-hover:-translate-x-1 transition-transform"></i>
+                    Kembali ke Beranda Utama
+                </a>
+
                 <p class="text-xs text-gray-500 font-medium">
                     Sudah memiliki akun? 
-                    <a href="{{ route('login') }}" class="ml-1 font-bold text-[#2D6A4F] hover:text-[#40916C] underline-offset-4 hover:underline transition">
+                    <a href="{{ route('login') }}" class="ml-1 font-bold text-[#2D6A4F] hover:text-[#40916C] underline-offset-4 hover:underline transition-all">
                         Masuk Sekarang
                     </a>
                 </p>
             </div>
+
         </div>
     </div>
 

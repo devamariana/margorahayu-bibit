@@ -39,6 +39,8 @@ class PindahJatah extends Model
      */
     public function penerima()
     {
-        return $this->belongsTo(Petani::class, 'penerima_id');
+        return $this->belongsTo(Petani::class, 'penerima_id')->withDefault([
+            'nama_lengkap' => 'Admin'
+        ]);
     }
 }

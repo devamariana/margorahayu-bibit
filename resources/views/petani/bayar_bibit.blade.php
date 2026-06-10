@@ -71,11 +71,6 @@
                             Kirim Bukti Pembayaran
                         </button>
                     </form>
-                @if($transaksi->metode_pembayaran != 'midtrans')
-                <a href="{{ route('petani.sukses_bayar', $transaksi->id) }}" class="w-full bg-[#28A745] hover:bg-[#218838] text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-sm flex items-center justify-center gap-3 mt-4">
-                    <i class="fas fa-check"></i> Konfirmasi Pembayaran
-                </a>
-                @endif
                 @else
                     <div class="bg-green-50 p-4 rounded-xl text-center border border-green-100">
                         <i class="fas fa-clock text-green-600 text-2xl mb-2"></i>
@@ -116,7 +111,7 @@
             @endif
             @if($transaksi->metode_pembayaran == 'tunai')
                 <a href="{{ route('petani.sukses_bayar', $transaksi->id) }}" class="w-full bg-[#28A745] hover:bg-[#218838] text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-sm flex items-center justify-center gap-3 mt-4">
-                    <i class="fas fa-check-circle"></i> SAYA SUDAH MEMBAYAR
+                    <i class="fas fa-check-circle"></i> SAYA SUDAH MEMBAYAR (Menunggu Verifikasi Admin)
                 </a>
             @elseif($transaksi->metode_pembayaran != 'midtrans')
                 <a href="{{ route('petani.riwayat') }}" class="w-full bg-[#28A745] hover:bg-[#218838] text-white font-black py-4 rounded-xl shadow-lg transition-all duration-300 uppercase tracking-widest text-sm flex items-center justify-center gap-3 mt-4">

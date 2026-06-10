@@ -18,14 +18,15 @@ class Bibit extends Model
      * Kolom yang boleh diisi secara massal (Mass Assignable)
      */
     protected $fillable = [
-        'nama_bibit', 
-        'jenis', 
-        'sumber_pasokan', // TAMBAHKAN INI agar Master Data Masuk tersimpan
-        'stok', 
+        'nama_bibit',
+        'jenis',
+        'kategori_musim',
+        'sumber_pasokan',
+        'stok',
         'stok_awal',
-        'harga_subsidi', 
-        'deskripsi', 
-        'gambar', 
+        'harga_subsidi',
+        'deskripsi',
+        'gambar',
         'status',
         'is_buka',
         'tanggal_buka',

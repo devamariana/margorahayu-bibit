@@ -87,9 +87,9 @@
                             @if($r->status_pembayaran == 'sukses' || $r->status_pembayaran == 'lunas')
                                 <span class="px-2 py-0.5 bg-green-500 text-white text-[9px] font-black rounded-md uppercase tracking-tighter shadow-sm">Lunas</span>
                             @elseif($r->status_pembayaran == 'menunggu_persetujuan')
-                                <span class="px-2 py-0.5 bg-yellow-500 text-white text-[9px] font-black rounded-md uppercase tracking-tighter shadow-sm">Verif</span>
+                                <span class="px-2 py-0.5 bg-yellow-500 text-white text-[9px] font-black rounded-md uppercase tracking-tighter shadow-sm">Menunggu Verifikasi</span>
                             @elseif($r->status_pembayaran == 'menunggu_pembayaran' || $r->status_pembayaran == 'pending')
-                                <span class="px-2 py-0.5 bg-blue-500 text-white text-[9px] font-black rounded-md uppercase tracking-tighter shadow-sm">Bayar</span>
+                                <span class="px-2 py-0.5 bg-blue-500 text-white text-[9px] font-black rounded-md uppercase tracking-tighter shadow-sm">Belum Bayar</span>
                             @elseif($r->status_pembayaran == 'kadaluarsa')
                                 <span class="px-2 py-0.5 bg-gray-500 text-white text-[9px] font-black rounded-md uppercase tracking-tighter shadow-sm">Expired</span>
                             @else
@@ -175,13 +175,20 @@
                 </div>
             </div>
         </div>
-        <div class="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
-            <button onclick="closeDetail()" class="flex-1 py-3 bg-gray-800 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-colors">
-                Tutup
-            </button>
-            <a href="https://wa.me/6282228154201" target="_blank" class="flex items-center justify-center px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-100">
-                <i class="fab fa-whatsapp"></i>
-            </a>
+        <div class="p-6 bg-gray-50 border-t border-gray-100 flex flex-col gap-3">
+            <div id="printSection" class="hidden w-full">
+                <a id="btnCetakStruk" href="#" target="_blank" class="w-full py-3 bg-[#EAB308] hover:bg-yellow-600 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-yellow-100 transition-all">
+                    <i class="fas fa-print"></i> Cetak Struk Pembayaran
+                </a>
+            </div>
+            <div class="flex gap-3 w-full">
+                <button onclick="closeDetail()" class="flex-1 py-3 bg-gray-800 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-colors">
+                    Tutup
+                </button>
+                <a href="https://wa.me/6282228154201" target="_blank" class="flex items-center justify-center px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-100">
+                    <i class="fab fa-whatsapp"></i>
+                </a>
+            </div>
         </div>
     </div>
 </div>
@@ -202,8 +209,12 @@ function showDetail(data, namaLahan, namaBibit) {
     let statusHtml = '';
     if (data.status_pembayaran === 'sukses' || data.status_pembayaran === 'lunas') {
         statusHtml = '<span class="px-2 py-0.5 bg-green-500 text-white text-[9px] font-black rounded uppercase shadow-sm">Lunas</span>';
+    } else if (data.status_pembayaran === 'menunggu_persetujuan') {
+        statusHtml = '<span class="px-2 py-0.5 bg-yellow-500 text-white text-[9px] font-black rounded uppercase shadow-sm">Menunggu Verifikasi</span>';
+    } else if (data.status_pembayaran === 'menunggu_pembayaran' || data.status_pembayaran === 'pending') {
+        statusHtml = '<span class="px-2 py-0.5 bg-blue-500 text-white text-[9px] font-black rounded uppercase shadow-sm">Belum Bayar</span>';
     } else {
-        statusHtml = '<span class="px-2 py-0.5 bg-orange-500 text-white text-[9px] font-black rounded uppercase shadow-sm">' + data.status_pembayaran + '</span>';
+        statusHtml = '<span class="px-2 py-0.5 bg-red-500 text-white text-[9px] font-black rounded uppercase shadow-sm">' + data.status_pembayaran + '</span>';
     }
     statusContainer.innerHTML = statusHtml;
 
@@ -214,6 +225,16 @@ function showDetail(data, namaLahan, namaBibit) {
         buktiContainer.classList.remove('hidden');
     } else {
         buktiContainer.classList.add('hidden');
+    }
+    
+    // REVISI: Tampilkan tombol cetak struk hanya jika sudah lunas
+    const printSection = document.getElementById('printSection');
+    const btnCetak = document.getElementById('btnCetakStruk');
+    if (data.status_pembayaran === 'sukses' || data.status_pembayaran === 'lunas') {
+        printSection.classList.remove('hidden');
+        btnCetak.href = '/pembelian/struk/' + data.id; // Gunakan parameter r.id
+    } else {
+        printSection.classList.add('hidden');
     }
 
     modal.classList.remove('hidden');

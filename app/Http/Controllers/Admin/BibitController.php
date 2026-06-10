@@ -29,13 +29,16 @@ class BibitController extends Controller
     {
         $request->validate([
             'nama_bibit' => 'required',
+            'jenis' => 'required',
+            'kategori_musim' => 'required|in:kemarau,penghujan',
             'stok' => 'required|numeric',
             'harga_subsidi' => 'required|numeric',
             'sumber_pasokan' => 'required',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
-        $data = $request->only(['nama_bibit', 'jenis', 'stok', 'harga_subsidi', 'deskripsi', 'sumber_pasokan']);
+        $data = $request->only(['nama_bibit', 'jenis', 'kategori_musim', 'stok', 'harga_subsidi', 'deskripsi', 'sumber_pasokan']);
+
         
         if ($request->hasFile('gambar')) {
             $file = $request->file('gambar');
@@ -76,11 +79,14 @@ class BibitController extends Controller
     {
         $request->validate([
             'nama_bibit' => 'required',
+            'jenis' => 'required',
+            'kategori_musim' => 'required|in:kemarau,penghujan',
             'stok' => 'required|numeric',
             'harga_subsidi' => 'required|numeric',
             'sumber_pasokan' => 'required',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
+
 
         $bibit = Bibit::findOrFail($id);
 
@@ -95,7 +101,8 @@ class BibitController extends Controller
             }
         }
 
-        $data = $request->only(['nama_bibit', 'jenis', 'stok', 'harga_subsidi', 'deskripsi', 'sumber_pasokan']);
+        $data = $request->only(['nama_bibit', 'jenis', 'kategori_musim', 'stok', 'harga_subsidi', 'deskripsi', 'sumber_pasokan']);
+
 
         if ($request->hasFile('gambar')) {
             if ($bibit->gambar) {
@@ -245,10 +252,9 @@ class BibitController extends Controller
         
         $dataDistribusi = $petanis->map(function($p) use ($bibit) {
             $userLuas = $p->lahans->where('status', 'disetujui')->sum('luas_lahan');
-            $pembagi = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : 1;
             
-            // Hitung Jatah Hak (Proporsional)
-            $hakProposional = ($userLuas / $pembagi) * $bibit->stok_awal;
+            // Hitung Jatah Hak (setiap petani mendapat stok penuh untuk lahan mereka)
+            $hakProposional = $bibit->stok_awal;
             
             // Hitung Tambahan dari Transfer Jatah (PindahJatah)
             $tambahanTransfer = \DB::table('pindah_jatahs')

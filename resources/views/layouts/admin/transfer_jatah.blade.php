@@ -52,7 +52,8 @@
                 </div>
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Jumlah Jatah (Kg)</label>
-                    <input type="number" step="0.1" name="jumlah_kg" class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm" placeholder="Misal: 5" required>
+                    <input type="number" step="0.1" name="jumlah_kg" id="jumlah_kg" class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm" placeholder="Misal: 5" required>
+                    <p id="infoSisa" class="text-[10px] text-gray-400 font-bold ml-1 hidden italic">Sisa Stok di Admin (Ketua): <span id="labelSisa" class="text-[#2D6A4F]">0</span> Kg</p>
                 </div>
                 <div class="pt-2 flex justify-end">
                     <button type="submit" class="px-6 py-2.5 bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-xs font-bold rounded-lg shadow-sm transition uppercase tracking-widest w-full">Alihkan Sekarang</button>
@@ -60,6 +61,46 @@
             </div>
         </form>
     </div>
+
+    <script>
+        function updateSisa() {
+            const bibitId = document.querySelector('select[name="bibit_id"]').value;
+            const pengirimId = document.querySelector('select[name="pengirim_id"]').value;
+            const infoSisa = document.getElementById('infoSisa');
+            const labelSisa = document.getElementById('labelSisa');
+
+            if (bibitId && pengirimId) {
+                fetch(`{{ route('admin.cek_sisa_jatah') }}?petani_id=${pengirimId}&bibit_id=${bibitId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        labelSisa.innerText = data.sisa;
+                        infoSisa.classList.remove('hidden');
+                    });
+            } else {
+                infoSisa.classList.add('hidden');
+            }
+        }
+
+        document.querySelector('select[name="bibit_id"]').addEventListener('change', updateSisa);
+        document.querySelector('select[name="pengirim_id"]').addEventListener('change', updateSisa);
+
+        document.getElementById('pindahForm').addEventListener('submit', function(e) {
+            const jumlahKg = document.getElementById('jumlah_kg').value;
+            const sisaJatah = parseFloat(document.getElementById('labelSisa').innerText);
+
+            if (!jumlahKg || parseFloat(jumlahKg) <= 0) {
+                Swal.fire('Error', 'Jumlah jatah tidak boleh kosong atau 0!', 'error');
+                e.preventDefault();
+                return;
+            }
+
+            if (parseFloat(jumlahKg) > sisaJatah) {
+                Swal.fire('Gagal', 'Jumlah transfer (Kg) melebihi sisa jatah pengirim!', 'error');
+                e.preventDefault();
+                return;
+            }
+        });
+    </script>
 
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 class="text-lg font-bold mb-4">Riwayat Pengalihan</h3>
@@ -87,16 +128,4 @@
         </div>
     </div>
 </div>
-
-<script>
-    document.getElementById('pindahForm').addEventListener('submit', function(e) {
-        const jumlahKg = document.getElementById('jumlah_kg').value;
-        if (!jumlahKg || parseInt(jumlahKg) <= 0) {
-            alert('Perhatian: Jumlah jatah yang dialihkan tidak boleh kosong atau 0!');
-            e.preventDefault();
-            return;
-        }
-        document.getElementById('jumlah_kg_real').value = jumlahKg;
-    });
-</script>
 @endsection

@@ -45,6 +45,8 @@
            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('petani.transfer_jatah') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
             <i class="fas fa-exchange-alt mr-3 group-hover:scale-110 transition"></i> Transfer Jatah
         </a>
+
+
     </nav>
 
     <div class="p-4 border-t border-[#40916C]">

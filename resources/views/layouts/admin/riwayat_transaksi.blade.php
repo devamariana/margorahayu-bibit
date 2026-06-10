@@ -91,7 +91,7 @@
                         <td class="p-4 text-center">
                             @if($t->status_pembayaran == 'sukses')
                                 <span class="px-3 py-1 bg-green-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter shadow-sm">LUNAS</span>
-                            @elseif($t->status_pembayaran == 'menunggu_pembayaran' || $t->status_pembayaran == 'pending')
+                            @elseif(in_array($t->status_pembayaran, ['menunggu_pembayaran', 'pending', 'menunggu_persetujuan']))
                                 <span class="px-3 py-1 bg-orange-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter shadow-sm">MENUNGGU</span>
                             @elseif($t->status_pembayaran == 'kadaluarsa')
                                 <span class="px-3 py-1 bg-gray-500 text-white text-[10px] font-bold rounded-md uppercase tracking-tighter shadow-sm">KADALUARSA</span>
@@ -107,34 +107,29 @@
                                 </div>
                             @endif
 
-                            {{-- Verifikasi Manual oleh Admin --}}
-                            @if(in_array($t->status_pembayaran, ['pending', 'menunggu_pembayaran']) || ($t->status_pembayaran == 'sukses' && $t->metode_pembayaran != 'midtrans'))
-                                <div class="mt-3 flex justify-center gap-1">
-                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="status_pembayaran" value="sukses">
-                                        <button type="submit" class="bg-green-100 text-green-700 px-2 py-1 rounded text-[9px] font-bold hover:bg-green-200" title="Verifikasi Lunas">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                    </form>
-                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="status_pembayaran" value="ditolak">
-                                        <button type="submit" class="bg-red-100 text-red-700 px-2 py-1 rounded text-[9px] font-bold hover:bg-red-200" title="Tolak">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            @endif
+
                         <td class="p-4 text-center">
                             <div class="flex justify-center gap-1">
                                 @if($t->status_pembayaran == 'sukses')
-                                    <a href="{{ route('petani.invoice', $t->id) }}" target="_blank" class="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition flex items-center justify-center" title="Cetak Invoice (PDF)">
-                                        <i class="fas fa-file-invoice text-[10px]"></i>
-                                    </a>
-                                    <a href="{{ route('petani.struk', $t->id) }}" target="_blank" class="p-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md shadow-sm transition flex items-center justify-center" title="Cetak Struk (Thermal)">
+                                    <a href="{{ route('petani.struk', $t->id) }}" target="_blank" class="p-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md shadow-sm transition flex items-center justify-center" title="Cetak Struk Pembayaran">
                                         <i class="fas fa-print text-[10px]"></i>
                                     </a>
+                                @elseif(in_array($t->status_pembayaran, ['pending', 'menunggu_pembayaran', 'menunggu_persetujuan']))
+                                    {{-- Tombol Verifikasi Akun Manual --}}
+                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <input type="hidden" name="status_pembayaran" value="sukses">
+                                        <button type="submit" class="p-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md shadow-sm transition flex items-center justify-center" title="Approve Pembayaran">
+                                            <i class="fas fa-check text-[10px]"></i>
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('admin.verifikasi_transaksi', $t->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <input type="hidden" name="status_pembayaran" value="ditolak">
+                                        <button type="submit" class="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md shadow-sm transition flex items-center justify-center" title="Tolak Pembayaran">
+                                            <i class="fas fa-times text-[10px]"></i>
+                                        </button>
+                                    </form>
                                 @else
                                     <span class="text-[9px] text-gray-300 font-bold uppercase">-</span>
                                 @endif

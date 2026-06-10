@@ -42,8 +42,9 @@ class AdminController extends Controller
         $petaniTerbaru = Petani::with('user')->latest()->take(5)->get();
 
         // 5. Data Chart Pembayaran
+        // (Nilainya tetap dipakai di pie chart, namun canvas dirender kondisional di view)
         $totalLunas = \App\Models\Transaksi::where('status_pembayaran', 'sukses')->count();
-        $totalPendingTx = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran'])->count();
+        $totalPendingTx = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran', 'menunggu_persetujuan'])->count();
 
         // 6. Statistik Periode Aktif
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
@@ -62,7 +63,8 @@ class AdminController extends Controller
                 ->sum('jumlah_beli');
         }
 
-        // 7. Data Chart Penjualan (6 bulan terakhir)
+// 7. Data Chart Penjualan (6 bulan terakhir)
+        // Grafik hanya meaningful jika benar-benar ada transaksi sukses (pengambilan)
         $chartLabels = [];
         $chartData = [];
         for ($i = 5; $i >= 0; $i--) {
@@ -74,7 +76,13 @@ class AdminController extends Controller
                 ->sum('jumlah_beli');
         }
 
-        return view('layouts.admin.dashboard', compact(
+        $hasPengambilan = (collect($chartData)->sum() > 0);
+        
+        // 5. Data Chart Pembayaran
+        $totalLunas = \App\Models\Transaksi::where('status_pembayaran', 'sukses')->count();
+        $totalPendingTx = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran', 'menunggu_persetujuan'])->count();
+
+return view('layouts.admin.dashboard', compact(
             'totalPetani', 
             'totalPending', 
             'totalStok', 
@@ -85,7 +93,8 @@ class AdminController extends Controller
             'chartData',
             'periodeAktif',
             'danaPeriodeAktif',
-            'bibitPeriodeAktif'
+            'bibitPeriodeAktif',
+            'hasPengambilan'
         ));
     }
 
@@ -204,24 +213,8 @@ class AdminController extends Controller
             return back()->with('error', 'Distribusi untuk bibit ini sudah ditutup.');
         }
 
-        // Logika Hitung Sisa Jatah Pengirim (Proporsional Dinamis)
-        $totalLuasRef = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : 1;
-        $userArea = Lahan::where('petani_id', $pengirim->id)->where('status', 'disetujui')->sum('luas_lahan');
-        
-        $hakProposional = ($userArea / $totalLuasRef) * $bibit->stok_awal;
-        
-        // Jatah = Hak Proporsional + Transfer Masuk - Transfer Keluar
-        $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg') 
-                           - \App\Models\PindahJatah::where('pengirim_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
-        
-        $hakTotal = $hakProposional + $tambahanTransfer;
-        
-        $sudahDibeli = Transaksi::where('petani_id', $pengirim->id)
-                        ->where('bibit_id', $bibit->id)
-                        ->where('status_pembayaran', 'sukses')
-                        ->sum('jumlah_beli');
-        
-        $sisaJatah = max(0, $hakTotal - $sudahDibeli);
+        // Jatah pengalihan di sisi Admin disesuaikan langsung dengan SISA STOK yang ada di gudang/admin (Ketua)
+        $sisaJatah = $bibit->stok;
 
         if ($sisaJatah < $request->jumlah_kg) {
             return back()->with('error', "Jatah pengirim untuk {$bibit->nama_bibit} tidak mencukupi (Sisa: {$sisaJatah} Kg)!");
@@ -255,6 +248,49 @@ class AdminController extends Controller
         });
 
         return back()->with('success', "Jatah {$bibit->nama_bibit} sebesar {$request->jumlah_kg} kg berhasil dialihkan!");
+    }
+
+    /**
+     * AJAX: Cek Sisa Jatah Petani untuk Bibit Tertentu
+     */
+    public function cekSisaJatah(Request $request)
+    {
+        $petani = Petani::find($request->petani_id);
+        $bibit = Bibit::find($request->bibit_id);
+
+        if (!$petani || !$bibit) return response()->json(['sisa' => 0]);
+
+        // 1. Total Luas Seluruh Petani (Global)
+        $totalLuasGlobal = \App\Models\Lahan::where('status', 'disetujui')->sum('luas_lahan');
+        
+        // 2. Total Luas Lahan Petani Ini
+        $totalLuasPetani = \App\Models\Lahan::where('petani_id', $petani->id)
+            ->where('status', 'disetujui')
+            ->sum('luas_lahan');
+
+        // 3. Hitung Hak Proposional
+        $hakProposional = 0;
+        if ($totalLuasGlobal > 0) {
+            $hakProposional = ($totalLuasPetani / $totalLuasGlobal) * ($bibit->stok ?? 0);
+        }
+
+        // 4. Hitung Tambahan dari Transfer Jatah (Penerima - Pengirim)
+        $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg')
+                           - \App\Models\PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+
+        // 5. Hak Total Pre-Purchase
+        $hakTotal = round($hakProposional + $tambahanTransfer, 1);
+
+        // 6. Hitung Yang Sudah Dibeli
+        $sudahDibeli = \App\Models\Transaksi::where('petani_id', $petani->id)
+            ->where('bibit_id', $bibit->id)
+            ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
+            ->sum('jumlah_beli');
+
+        // 7. Sisa Jatah yang Tersedia
+        $sisaJatah = max(0, round($hakTotal - $sudahDibeli, 1));
+
+        return response()->json(['sisa' => $sisaJatah]);
     }
 
     /**
@@ -482,7 +518,7 @@ class AdminController extends Controller
             ];
         });
 
-        $filename = 'Laporan-Margo-Rahayu-';
+        $filename = 'Laporan-Margo-Rahayu-II-';
         $filename .= $periodeId ? 'Periode-'.$periodeId.'-' : '';
         $filename .= date('Y-m-d').'.xlsx';
 
@@ -516,7 +552,7 @@ class AdminController extends Controller
         
         $pdf->setPaper('a4', 'landscape');
         
-        $filename = 'Laporan-Margo-Rahayu-';
+        $filename = 'Laporan-Margo-Rahayu-II-';
         $filename .= $periodeId ? 'Periode-'.$periodeId.'-' : '';
         $filename .= date('Y-m-d').'.pdf';
 

@@ -16,7 +16,7 @@ Route::post('/api/midtrans-callback', [WebhookController::class, 'midtransCallba
 
 // --- HALAMAN PUBLIK (Bisa diakses tanpa login) ---
 Route::get('/', function () {
-    return redirect('/login');
+    return view('welcome');
 });
 
 // Halaman login dan register sekarang bisa dibuka kapan saja (untuk multi-role)
@@ -67,8 +67,11 @@ Route::middleware(['auth:admin', 'checkRole:admin'])->group(function () {
     Route::get('/admin/transfer-jatah', [AdminController::class, 'pindahJatah'])->name('admin.transfer_jatah');
     Route::post('/admin/transfer-jatah/proses', [AdminController::class, 'prosesPindahJatah'])->name('admin.proses_transfer');
 
+    Route::get('/admin/transfer-jatah/cek-sisa', [AdminController::class, 'cekSisaJatah'])->name('admin.cek_sisa_jatah');
+    
     // Menu Admin Lainnya
     Route::get('/admin/data-periode', [PeriodeController::class, 'index'])->name('admin.data_periode');
+    Route::post('/admin/data-periode/quick-switch', [PeriodeController::class, 'quickSwitchSeason'])->name('admin.data_periode.quick_switch');
     Route::post('/admin/data-periode/store', [PeriodeController::class, 'store'])->name('admin.data_periode.store');
     Route::put('/admin/data-periode/update/{id}', [PeriodeController::class, 'update'])->name('admin.data_periode.update');
     Route::delete('/admin/data-periode/hapus/{id}', [PeriodeController::class, 'destroy'])->name('admin.data_periode.destroy');
@@ -79,7 +82,7 @@ Route::middleware(['auth:admin', 'checkRole:admin'])->group(function () {
     Route::get('/admin/notifikasi/baca-semua', [AdminController::class, 'bacaSemuaNotifikasi']);
 
     // Kelola Laporan Excel & PDF (Di-nonaktifkan atas permintaan user)
-    // Route::get('/admin/laporan', [AdminController::class, 'halamanLaporan'])->name('admin.laporan');
+    Route::get('/admin/laporan', [AdminController::class, 'halamanLaporan'])->name('admin.laporan');
     Route::get('/admin/export/excel', [AdminController::class, 'exportExcel'])->name('admin.export.excel');
     Route::get('/admin/export/pdf', [AdminController::class, 'exportPdf'])->name('admin.export.pdf');
 });
@@ -106,10 +109,10 @@ Route::middleware(['auth:petani', 'checkRole:petani'])->group(function () {
     Route::get('/beli-bibit/sukses-bayar/{id}', [PetaniController::class, 'suksesBayarBibit'])->name('petani.sukses_bayar');
     Route::get('/riwayat-pembelian', [PetaniController::class, 'riwayat'])->name('petani.riwayat');
     Route::get('/riwayat-pembelian/sync/{id}', [PetaniController::class, 'syncStatus'])->name('petani.riwayat.sync');
+    Route::get('/transfer-jatah', [PetaniController::class, 'transferJatah'])->name('petani.transfer_jatah');
+    Route::post('/transfer-jatah/proses', [PetaniController::class, 'prosesTransfer'])->name('petani.proses_transfer');
     
-    // Pengalihan Jatah (Transfer Hak ke Petani Lain)
-    Route::get('/petani/transfer-jatah', [PetaniController::class, 'transferJatah'])->name('petani.transfer_jatah');
-    Route::post('/petani/transfer-jatah/proses', [PetaniController::class, 'prosesTransferJatah'])->name('petani.proses_transfer');
+
 
     // Notifikasi
     Route::get('/petani/notifikasi/baca-semua', [PetaniController::class, 'bacaSemuaNotifikasi']);

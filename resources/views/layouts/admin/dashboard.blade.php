@@ -61,20 +61,28 @@
 
 
     {{-- Bagian Grafik --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Distribusi Penjualan Bibit</h3>
-            <div class="h-64 relative border-2 border-gray-50 rounded-lg">
-                <canvas id="adminSalesChart"></canvas>
+    @if(!empty($hasPengambilan) && $hasPengambilan)
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Distribusi Penjualan Bibit</h3>
+                <div class="h-64 relative border-2 border-gray-50 rounded-lg">
+                    <canvas id="adminSalesChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider text-center">Status Pembayaran</h3>
+                <div class="h-64 relative border-2 border-gray-50 rounded-lg flex justify-center">
+                    <canvas id="adminStatusChart"></canvas>
+                </div>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider text-center">Status Pembayaran</h3>
-            <div class="h-64 relative border-2 border-gray-50 rounded-lg flex justify-center">
-                <canvas id="adminStatusChart"></canvas>
-            </div>
+    @else
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Distribusi Penjualan Bibit</h3>
+            <p class="text-xs text-gray-500 mt-2">Belum ada pengambilan bibit (transaksi sukses). Grafik akan muncul setelah ada data.</p>
         </div>
-    </div>
+    @endif
+
 
     {{-- Tabel Transaksi --}}
     <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
@@ -117,6 +125,7 @@
 
 {{-- Script Chart.js --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+@if(!empty($hasPengambilan) && $hasPengambilan)
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         new Chart(document.getElementById('adminSalesChart'), {
@@ -148,4 +157,5 @@
         });
     });
 </script>
+@endif
 @endsection

@@ -11,45 +11,60 @@
 
         {{-- ROW 1: STATISTIK RINGKAS --}}
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shadow-sm">
-                <i class="fas fa-check-circle text-xl"></i>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shadow-sm">
+                    <i class="fas fa-check-circle text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Aktif</p>
+                    <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', true)->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
+                </div>
             </div>
-            <div>
-                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Aktif</p>
-                <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', true)->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 shadow-sm">
+                    <i class="fas fa-archive text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Sisa (Tutup)</p>
+                    <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', false)->whereNotNull('tanggal_buka')->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
+                </div>
             </div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 shadow-sm">
-                <i class="fas fa-archive text-xl"></i>
-            </div>
-            <div>
-                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Sisa (Tutup)</p>
-                <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', false)->whereNotNull('tanggal_buka')->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
-            </div>
-        </div>
-        {{-- Spacer atau Info Tambahan bisa di sini --}}
-        <div class="md:col-span-2"></div>
+            <div class="md:col-span-2"></div>
         </div>
 
-        {{-- ROW 2: ACTIONS --}}
+        {{-- ROW 2: ACTIONS & FILTER BUTTON MUSIM (REVISI) --}}
         <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-50 mb-4">
-            {{-- Fitur Cari --}}
-            <div class="relative w-full md:w-96">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                    <i class="fas fa-search text-xs"></i>
+            <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                {{-- Fitur Cari --}}
+                <div class="relative w-full sm:w-72">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                        <i class="fas fa-search text-xs"></i>
+                    </div>
+                    <input type="text" id="searchInput" onkeyup="filterTabelAdmin()" placeholder="Cari nama bibit..." 
+                        class="block w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] focus:bg-white transition-all text-xs outline-none">
                 </div>
-                <input type="text" id="searchInput" onkeyup="searchBibit()" placeholder="Cari berdasarkan nama bibit..." 
-                    class="block w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] focus:bg-white transition-all text-xs outline-none">
+
+                {{-- TOMBOL SAKLAR FILTER MUSIM AKTIF --}}
+                <div class="flex bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
+                    <button onclick="setFilterMusim('semua', this)" class="btn-filter-musim flex-1 sm:flex-none px-4 py-1.5 bg-white text-gray-800 text-[10px] font-black rounded-lg shadow-sm transition uppercase tracking-wider">
+                        ✨ Semua
+                    </button>
+                    <button onclick="setFilterMusim('kemarau', this)" class="btn-filter-musim flex-1 sm:flex-none px-4 py-1.5 text-gray-500 hover:text-gray-800 text-[10px] font-black rounded-lg transition uppercase tracking-wider">
+                        ☀ Kemarau
+                    </button>
+                    <button onclick="setFilterMusim('penghujan', this)" class="btn-filter-musim flex-1 sm:flex-none px-4 py-1.5 text-gray-500 hover:text-gray-800 text-[10px] font-black rounded-lg transition uppercase tracking-wider">
+                        🌧 Penghujan
+                    </button>
+                </div>
             </div>
-            <button onclick="openModal('tambah')" class="px-6 py-2 bg-[#007BFF] hover:bg-blue-700 text-white text-[10px] font-black rounded-xl shadow-lg shadow-blue-100 transition uppercase tracking-widest flex items-center gap-2">
+
+            <button onclick="openModal('tambah')" class="w-full md:w-auto px-6 py-2 bg-[#007BFF] hover:bg-blue-700 text-white text-[10px] font-black rounded-xl shadow-lg shadow-blue-100 transition uppercase tracking-widest flex items-center justify-center gap-2">
                 <i class="fas fa-truck-loading"></i> Input Kedatangan Bibit
             </button>
         </div>
     </div>
 
-    {{-- TABLE SECTION: Ini yang akan mengambil sisa layar --}}
+    {{-- TABLE SECTION --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
         <div class="overflow-x-auto overflow-y-auto flex-1 text-[11px] relative custom-scrollbar">
             <table class="w-full text-left border-collapse" id="bibitTable">
@@ -61,14 +76,15 @@
                         <th class="p-4 border-b">Jenis/Varietas</th>
                         <th class="p-4 border-b">Stok (Kg)</th>
                         <th class="p-4 border-b">Harga per Kg</th>
-                        <th class="p-4 border-b">Periode</th>
+                        <th class="p-4 border-b">Periode / Musim</th>
                         <th class="p-4 border-b">Status Distribusi</th>
                         <th class="p-4 border-b text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($bibits as $index => $b)
-                    <tr class="hover:bg-gray-50 transition">
+                    {{-- Tambahkan data-musim pada tag TR untuk filter JavaScript --}}
+                    <tr class="item-bibit-row hover:bg-gray-50 transition" data-musim="{{ trim($b->kategori_musim) }}">
                         <td class="p-4 text-gray-600">{{ $index + 1 }}</td>
                         <td class="p-4">
                             <div class="w-16 h-16 border-2 border-gray-300 rounded flex items-center justify-center relative bg-gray-50 overflow-hidden">
@@ -90,19 +106,26 @@
                             </span>
                         </td>
                         <td class="p-4 font-bold text-gray-800">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}</td>
+                        
+                        {{-- FIX PENAMPILAN BADGE PERIODE MUSIM --}}
                         <td class="p-4">
-                            @if($b->periode)
-                                <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-bold text-[10px]">
-                                    {{ $b->periode->tahun }}
+                            @if(trim($b->kategori_musim) === 'kemarau')
+                                <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider">
+                                    ☀ Musim Kemarau
+                                </span>
+                            @elseif(trim($b->kategori_musim) === 'penghujan')
+                                <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider">
+                                    🌧 Musim Penghujan
                                 </span>
                             @else
-                                <span class="text-gray-400 text-[10px] italic">Tanpa Periode</span>
+                                <span class="text-gray-400 text-[10px] italic">Tanpa Musim</span>
                             @endif
                         </td>
+
                         <td class="p-4">
                             @if($b->is_buka)
                                 <div class="flex flex-col gap-1">
-                                    <span class="inline-block bg-green-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase w-fit">DISTRIBUSI DIBUKA</span>
+                                    <span class="inline-block bg-green-500 text White text-[8px] font-black px-1.5 py-0.5 rounded uppercase w-fit">DISTRIBUSI DIBUKA</span>
                                     <div class="text-[9px] text-gray-400 flex flex-col">
                                         <span>Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/y H:i') }}</span>
                                         <span>Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/y H:i') }}</span>
@@ -147,7 +170,6 @@
                                     <i class="fas fa-eye text-[10px]"></i>
                                 </a>
 
-                                {{-- Tombol Edit dengan Data Attributes --}}
                                 @if(!$b->is_buka)
                                 <button title="Edit" 
                                     onclick="openModal('edit', {{ json_encode($b) }})"
@@ -155,8 +177,7 @@
                                     <i class="fas fa-edit text-[10px]"></i>
                                 </button>
                                 @else
-                                <button title="Tidak bisa diedit saat distribusi aktif" 
-                                    disabled
+                                <button title="Tidak bisa diedit saat distribusi aktif" disabled
                                     class="w-8 h-8 bg-gray-300 text-gray-500 cursor-not-allowed rounded shadow-sm flex items-center justify-center transition">
                                     <i class="fas fa-edit text-[10px]"></i>
                                 </button>
@@ -174,7 +195,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="p-4 text-center text-gray-500 italic">Data bibit belum tersedia.</td>
+                        <td colspan="9" class="p-4 text-center text-gray-500 italic">Data bibit belum tersedia.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -183,7 +204,7 @@
     </div>
 </div>
 
-{{-- MODAL FORM (BISA UNTUK TAMBAH & EDIT) --}}
+{{-- MODAL FORM (TAMBAH & EDIT) --}}
 <div id="modalBibit" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
         <div class="flex justify-between items-center mb-4">
@@ -195,7 +216,7 @@
         </div>
         <form id="bibitForm" action="{{ route('admin.store_bibit') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
             @csrf
-            <div id="methodField"></div> {{-- Tempat untuk @method('PUT') saat edit --}}
+            <div id="methodField"></div>
             
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Komoditas Bibit / Varietas</label>
@@ -205,6 +226,15 @@
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Jenis/Varietas</label>
                 <input type="text" name="jenis" id="f_jenis" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
             </div>
+
+            <div>
+                <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Kategori Musim</label>
+                <select name="kategori_musim" id="f_kategori_musim" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
+                    <option value="kemarau">Musim Kemarau</option>
+                    <option value="penghujan">Musim Penghujan</option>
+                </select>
+            </div>
+
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Sumber Pasokan</label>
                 <input type="text" name="sumber_pasokan" id="f_sumber_pasokan" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Contoh: PT. Bisi Internasional" required>
@@ -225,10 +255,9 @@
                 <textarea name="deskripsi" id="f_deskripsi" rows="2" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"></textarea>
             </div>
             <div>
-                <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Bukti Foto Fisik Bibit (Kosongkan jika tidak ganti)</label>
+                <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Bukti Foto Fisik Bibit</label>
                 <input type="file" name="gambar" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition">
             </div>
-
 
             <div class="flex justify-end gap-2 pt-4">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 transition">Batal</button>
@@ -240,9 +269,10 @@
     </div>
 </div>
 
-
 <script>
-    // FUNGSI MODAL DINAMIS (TAMBAH & EDIT)
+    // Menyimpan state filter aktif saat ini
+    let filterMusimAktif = 'semua';
+
     function openModal(mode, data = null) {
         const modal = document.getElementById('modalBibit');
         const form = document.getElementById('bibitForm');
@@ -254,16 +284,15 @@
 
         if (mode === 'edit') {
             title.innerText = 'Koreksi Data Batch Kedatangan';
-            form.action = `/admin/data-bibit/update/${data.id}`; // Sesuaikan dengan route update kamu
+            form.action = `/admin/data-bibit/update/${data.id}`;
             methodField.innerHTML = '@method("PUT")';
             
-            // Isi Form dengan data lama
             document.getElementById('f_nama').value = data.nama_bibit;
             document.getElementById('f_jenis').value = data.jenis;
+            document.getElementById('f_kategori_musim').value = data.kategori_musim || 'kemarau';
             document.getElementById('f_sumber_pasokan').value = data.sumber_pasokan || '';
             document.getElementById('f_stok').value = data.stok;
-            
-            // Atur nominal dengan format
+
             let hargaInput = document.getElementById('f_harga');
             hargaInput.value = data.harga_subsidi;
             formatNominal(hargaInput);
@@ -274,6 +303,8 @@
             form.action = "{{ route('admin.store_bibit') }}";
             methodField.innerHTML = '';
             form.reset();
+            const sel = document.getElementById('f_kategori_musim');
+            if(sel) sel.value = 'kemarau';
         }
     }
 
@@ -283,46 +314,43 @@
         modal.classList.remove('flex');
     }
 
-    // FUNGSI CARI BIBIT (CLIENT SIDE)
-    function searchTable() {
-        let input = document.getElementById("searchInput").value.toLowerCase();
-        let rows = document.querySelectorAll("#bibitTable tbody tr");
+    // INTERAKSI FILTER SAKLAR TOMBOL MUSIM (REVISI BARU)
+    function setFilterMusim(musim, element) {
+        filterMusimAktif = musim;
+        
+        // Atur gaya aktif tombol filter
+        document.querySelectorAll('.btn-filter-musim').forEach(btn => {
+            btn.classList.remove('bg-white', 'shadow-sm', 'text-gray-800');
+            btn.classList.add('text-gray-500', 'hover:text-gray-800');
+        });
+        element.classList.remove('text-gray-500', 'hover:text-gray-800');
+        element.classList.add('bg-white', 'shadow-sm', 'text-gray-800');
+
+        // Jalankan pemfilteran ulang tabel
+        filterTabelAdmin();
+    }
+
+    // FUNGSI GABUNGAN CARI TEXT & KLIK TOMBOL MUSIM
+    function filterTabelAdmin() {
+        let inputText = document.getElementById("searchInput").value.toLowerCase();
+        let rows = document.querySelectorAll("#bibitTable tbody tr.item-bibit-row");
 
         rows.forEach(row => {
-            let name = row.querySelector(".bibit-name").innerText.toLowerCase();
-            row.style.display = name.includes(input) ? "" : "none";
-        });
-    }
+            let nameElement = row.querySelector(".bibit-name");
+            let namaMatches = nameElement ? nameElement.innerText.toLowerCase().includes(inputText) : true;
+            
+            let rowMusim = row.getAttribute('data-musim').toLowerCase().trim();
+            let musimMatches = (filterMusimAktif === 'semua' || rowMusim === filterMusimAktif);
 
-    // FUNGSI FILTER PETANI DI MODAL
-    function filterPetani() {
-        let input = document.getElementById("searchPetani").value.toLowerCase();
-        let items = document.querySelectorAll(".petani-item");
-
-        items.forEach(item => {
-            let name = item.querySelector(".petani-name").innerText.toLowerCase();
-            item.style.display = name.includes(input) ? "flex" : "none";
-        });
-    }
-
-    // FUNGSI MUNCULKAN INPUT KUOTA SAAT CHECKBOX DICENTANG
-    function toggleKuota(id) {
-        let checkbox = document.querySelector(`input[value="${id}"].petani-checkbox`);
-        let inputKuota = document.getElementById(`kuota_${id}`);
-        // Jika dipanggil tanpa event tapi elemen checkbox ada
-        if(checkbox) {
-            if(checkbox.checked) {
-                inputKuota.classList.remove('hidden');
-                inputKuota.required = true;
+            // Tampilkan baris jika COCOK dengan teks pencarian DAN cocok dengan tombol musim
+            if (namaMatches && musimMatches) {
+                row.style.display = "";
             } else {
-                inputKuota.classList.add('hidden');
-                inputKuota.required = false;
-                inputKuota.value = '';
+                row.style.display = "none";
             }
-        }
+        });
     }
 
-    // FUNGSI FORMAT NOMINAL & VALIDASI ANGKA
     function sanitizeNumber(input) {
         input.value = input.value.replace(/[^0-9]/g, '');
     }
@@ -330,13 +358,12 @@
     function formatNominal(input) {
         let value = input.value.replace(/[^0-9]/g, '');
         if (value) {
-            input.value = parseInt(value, 10).toLocaleString('id-ID'); // Format titik uang Indonesia
+            input.value = parseInt(value, 10).toLocaleString('id-ID');
         } else {
             input.value = '';
         }
     }
 
-    // FUNGSI CEK PADA SAAT SUBMIT
     document.getElementById('bibitForm').addEventListener('submit', function(e) {
         const hargaReal = document.getElementById('f_harga').value.replace(/[^0-9]/g, '');
         const stokReal = document.getElementById('f_stok').value.replace(/[^0-9]/g, '');
@@ -353,7 +380,6 @@
             return;
         }
 
-        // Set the hidden input with unformatted value to submit into database
         document.getElementById('f_harga_real').value = hargaReal;
     });
 </script>

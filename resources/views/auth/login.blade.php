@@ -13,11 +13,10 @@
 </head>
 <body class="bg-[#F0F7F2] flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-md bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(45,106,79,0.15)] overflow-hidden border border-gray-100">
-        
+    <div class="w-full max-w-md bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(45,106,79,0.15)] overflow-hidden border border-gray-100 relative">
         <div class="h-3 bg-[#2D6A4F]"></div>
 
-        <div class="p-10">
+        <div class="p-10 pb-6">
             <div class="text-center mb-10">
                 <div class="inline-flex items-center justify-center w-20 h-20 bg-[#D8F3DC] rounded-3xl mb-6 rotate-3 hover:rotate-0 transition-transform duration-300">
                     <i class="fas fa-user-circle text-[#2D6A4F] text-4xl"></i>
@@ -82,10 +81,15 @@
                 </div>
             </form>
 
-            <div class="mt-10 text-center border-t border-gray-50 pt-8">
+            <div class="mt-10 text-center border-t border-gray-100 pt-8 space-y-4">
+                <a href="{{ url('/') }}" class="group flex items-center justify-center gap-3 w-full py-3.5 bg-gray-50 text-[#2D6A4F] border border-[#D8F3DC] rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#2D6A4F] hover:text-white hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1">
+                    <i class="fas fa-chevron-left group-hover:-translate-x-1 transition-transform"></i>
+                    Kembali ke Beranda Utama
+                </a>
+
                 <p class="text-sm text-gray-500 font-medium">
                     Belum punya akun? 
-                    <a href="{{ route('register') }}" class="ml-1 font-bold text-[#2D6A4F] hover:text-[#40916C] underline-offset-4 hover:underline transition">
+                    <a href="{{ route('register') }}" class="ml-1 font-bold text-[#2D6A4F] hover:text-[#40916C] underline-offset-4 hover:underline transition-all">
                         Daftar Sekarang
                     </a>
                 </p>
