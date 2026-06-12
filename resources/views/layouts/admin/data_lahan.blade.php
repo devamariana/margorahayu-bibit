@@ -7,14 +7,28 @@
     {{-- Notifikasi Sukses via Layout (Global SweetAlert2) --}}
     <div class="flex-none">
         <div class="flex justify-end items-center mb-4">
-            <form action="{{ route('admin.data_lahan') }}" method="GET" class="relative w-full md:w-80">
-                <input type="text" 
-                       name="search"
-                       value="{{ request('search') }}"
-                       placeholder="Cari lahan (blok/petani)..." 
-                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm bg-white text-xs">
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-            </form>
+            <div class="flex items-center gap-3">
+                {{-- Filter Tahun --}}
+                <form action="{{ route('admin.data_lahan') }}" method="GET" class="flex items-center">
+                    <select name="tahun" onchange="this.form.submit()" class="bg-white border border-gray-300 text-gray-700 text-xs rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#2D6A4F] outline-none font-bold shadow-sm">
+                        @foreach($tahunTersedia as $thn)
+                            <option value="{{ $thn }}" {{ $selectedTahun == $thn ? 'selected' : '' }}>Tahun {{ $thn }}</option>
+                        @endforeach
+                        @if(!$tahunTersedia->contains(date('Y')))
+                            <option value="{{ date('Y') }}" {{ $selectedTahun == date('Y') ? 'selected' : '' }}>Tahun {{ date('Y') }}</option>
+                        @endif
+                    </select>
+                </form>
+
+                <form action="{{ route('admin.data_lahan') }}" method="GET" class="relative w-full md:w-80">
+                    <input type="text" 
+                           name="search"
+                           value="{{ request('search') }}"
+                           placeholder="Cari lahan (blok/petani)..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6A4F] focus:outline-none shadow-sm bg-white text-xs">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -26,11 +40,11 @@
                         <th class="p-4 border-b">No</th>
                         <th class="p-4 border-b">Nama Pemilik</th>
                         <th class="p-4 border-b">Lokasi/Blok Lahan</th>
-                        <th class="p-4 border-b">Luas Lahan (m²)</th>
-
+                        <th class="p-4 border-b">Luas Lahan</th>
+                        <th class="p-4 border-b">Pengajuan Bibit</th>
                         <th class="p-4 border-b">Bibit yang Dibeli</th>
-                        <th class="p-4 border-b">Status</th>
-                        <th class="p-4 border-b text-center">Aksi</th>
+                        <th class="p-4 border-b">Status Lahan</th>
+                        <th class="p-4 border-b text-center">Aksi Lahan</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -40,12 +54,51 @@
                         <td class="p-4 font-bold text-gray-800">{{ $l->petani->nama_lengkap ?? 'Petani Dihapus' }}</td>
                         <td class="p-4 text-gray-600 uppercase">{{ $l->nama_blok }}</td>
                         <td class="p-4 font-medium text-gray-700">{{ $l->luas_lahan }} m²</td>
-
                         <td class="p-4">
                             @php
-                                $bibitDibeli = $l->transaksi->whereIn('status_pembayaran', ['sukses', 'lunas'])
-                                    ->filter(function($t) {
-                                        return $t->bibit;
+                                // Ambil pengajuan terakhir untuk lahan ini pada periode aktif
+                                $pengajuan = $l->pengajuans->last(); 
+                            @endphp
+                            
+                            @if($pengajuan)
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-1">
+                                        <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-black uppercase border border-blue-200">
+                                            {{ $pengajuan->bibit->nama_bibit }}
+                                        </span>
+                                        @if($pengajuan->status === 'menunggu')
+                                            <div class="flex gap-1 ml-1">
+                                                <form action="{{ route('admin.verifikasi_pengajuan', $pengajuan->id) }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="status" value="disetujui">
+                                                    <button type="button" onclick="confirmActionPengajuan(this, 'Setujui pengajuan bibit ini?')" class="w-5 h-5 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center justify-center">
+                                                        <i class="fas fa-check text-[8px]"></i>
+                                                    </button>
+                                                </form>
+                                                <form action="{{ route('admin.verifikasi_pengajuan', $pengajuan->id) }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="status" value="ditolak">
+                                                    <button type="button" onclick="confirmActionPengajuan(this, 'Tolak pengajuan bibit ini?', 'warning')" class="w-5 h-5 bg-red-600 text-white rounded hover:bg-red-700 transition flex items-center justify-center">
+                                                        <i class="fas fa-times text-[8px]"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <span class="text-[9px] uppercase font-bold {{ $pengajuan->status === 'disetujui' ? 'text-green-600' : ($pengajuan->status === 'ditolak' ? 'text-red-500' : 'text-amber-500') }}">
+                                        {{ $pengajuan->status }}
+                                    </span>
+                                </div>
+                            @else
+                                <span class="text-[10px] text-gray-400 italic">Belum ada pengajuan</span>
+                            @endif
+                        </td>
+                        <td class="p-4">
+                            @php
+                                $bibitDibeli = $l->transaksi
+                                    ->whereIn('status_pembayaran', ['sukses', 'lunas'])
+                                    ->filter(function($t) use ($selectedTahun) {
+                                        return $t->bibit && $t->created_at->year == $selectedTahun;
                                     })
                                     ->pluck('bibit.nama_bibit')
                                     ->unique();
@@ -116,27 +169,25 @@
 
         if (status === 'ditolak') {
             Swal.fire({
-                title: 'Alasan Penolakan',
+                title: 'Alasan Penolakan Lahan',
                 input: 'textarea',
                 inputLabel: 'Berikan alasan mengapa lahan ini ditolak',
-                inputPlaceholder: 'Contoh: Luas lahan tidak valid atau lokasi tidak ditemukan...',
+                inputPlaceholder: 'Contoh: Luas lahan tidak valid...',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
                 cancelButtonColor: '#3085d6',
                 confirmButtonText: 'Tolak Lahan',
                 cancelButtonText: 'Batal',
                 inputValidator: (value) => {
-                    if (!value) {
-                        return 'Anda harus memberikan alasan penolakan!'
-                    }
+                    if (!value) return 'Alasan harus diisi!'
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'catatan';
-                    input.value = result.value;
-                    form.appendChild(input);
+                    const extraInput = document.createElement('input');
+                    extraInput.type = 'hidden';
+                    extraInput.name = 'catatan_admin';
+                    extraInput.value = result.value;
+                    form.appendChild(extraInput);
                     form.submit();
                 }
             });
@@ -148,12 +199,51 @@
                 showCancelButton: true,
                 confirmButtonColor: '#2D6A4F',
                 cancelButtonColor: '#d33',
-                confirmButtonText: 'Ya, Lanjutkan!',
-                cancelButtonText: 'Batal'
+                confirmButtonText: 'Ya, Proses Sekarang'
+            }).then((result) => {
+                if (result.isConfirmed) form.submit();
+            });
+        }
+    }
+
+    function confirmActionPengajuan(button, message, type = 'question') {
+        const form = button.closest('form');
+        const status = form.querySelector('input[name="status"]').value;
+
+        if (status === 'ditolak') {
+            Swal.fire({
+                title: 'Alasan Penolakan Pengajuan',
+                input: 'textarea',
+                inputLabel: 'Berikan alasan penolakan bibit',
+                inputPlaceholder: 'Contoh: Stok tidak cukup atau jatah penuh...',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Tolak Pengajuan',
+                inputValidator: (value) => {
+                    if (!value) return 'Alasan harus diisi!'
+                }
             }).then((result) => {
                 if (result.isConfirmed) {
+                    const extraInput = document.createElement('input');
+                    extraInput.type = 'hidden';
+                    extraInput.name = 'catatan';
+                    extraInput.value = result.value;
+                    form.appendChild(extraInput);
                     form.submit();
                 }
+            });
+        } else {
+            Swal.fire({
+                title: 'Konfirmasi Pengajuan',
+                text: message,
+                icon: type,
+                showCancelButton: true,
+                confirmButtonColor: '#2D6A4F',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Setujui'
+            }).then((result) => {
+                if (result.isConfirmed) form.submit();
             });
         }
     }

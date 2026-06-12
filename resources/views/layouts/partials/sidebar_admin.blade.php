@@ -50,6 +50,8 @@
             <i class="fas fa-map-marked-alt mr-3 group-hover:scale-110 transition text-sm"></i> Data Lahan
         </a>
 
+
+
         {{-- Menu Data Penjualan (Monitor Transaksi) --}}
         <a href="{{ route('admin.riwayat_transaksi') }}" 
             class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.riwayat_transaksi') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">

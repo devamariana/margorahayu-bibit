@@ -1,6 +1,6 @@
 @extends('layouts.petani_layout')
 
-@section('title', 'Informasi & Pembelian Bibit')
+@section('title', 'Form Pembelian Bibit')
 
 @section('content')
 <div class="space-y-8">
@@ -28,22 +28,22 @@
         </div>
     @endif
 
-    {{-- BAGIAN PILIH LAHAN TERLEBIH DAHULU --}}
+    {{-- STEP 1: PILIH LAHAN --}}
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-green-100 flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-4">
             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-[#2D6A4F]">
                 <i class="fas fa-map-marked-alt text-xl"></i>
             </div>
             <div>
-                <h3 class="font-bold text-gray-800">Pilih Lahan yang Akan Ditanami</h3>
+                <h3 class="font-bold text-gray-800">1. Pilih Lahan yang Akan Ditanami</h3>
                 <p class="text-xs text-gray-500">Jatah bibit akan dihitung otomatis sesuai luas lahan yang dipilih.</p>
             </div>
         </div>
         <div class="w-full md:w-1/3 relative">
             <select id="pilih-lahan" onchange="resetPilihanBibit()" class="appearance-none w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2D6A4F] outline-none font-bold text-[#1B4332] pr-10">
-                <option value="" data-luas="0" data-tambahan="0">-- Pilih Lokasi Lahan --</option>
+                <option value="" data-luas="0">-- Pilih Lokasi Lahan --</option>
                 @foreach($lahans as $l)
-                    <option value="{{ $l->id }}" data-luas="{{ $l->luas_lahan }}" data-tambahan="{{ $petani->jatah_tambahan ?? 0 }}">
+                    <option value="{{ $l->id }}" data-luas="{{ $l->luas_lahan }}">
                         {{ $l->nama_blok }} ({{ $l->luas_lahan }} m²)
                     </option>
                 @endforeach
@@ -54,106 +54,89 @@
         </div>
     </div>
 
-    {{-- TAMPILAN PRODUK KATALOG DARI DATABASE --}}
-    <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-[#2D6A4F] rounded-full flex items-center justify-center text-white">
-                <i class="fas fa-store text-sm"></i>
+    {{-- STEP 2: PILIH BIBIT (VERSI LEBIH PADAT) --}}
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-orange-100">
+        <div class="flex items-center gap-4 mb-6">
+            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
+                <i class="fas fa-seedling text-xl"></i>
             </div>
-            <div>
-                <h3 class="font-bold text-gray-800">Katalog Bibit Tersedia</h3>
-                <p class="text-[10px] text-gray-500">Pilih musim untuk melihat varietas bibit.</p>
-            </div>
-        </div>
-
-        {{-- FILTER MUSIM: TABS STYLE --}}
-        <div class="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
-            <button onclick="changeSeasonFilter('kemarau', this)" 
-                    class="filter-btn px-6 py-2 rounded-lg text-xs font-bold transition-all {{ $currentMusimAktif === 'kemarau' ? 'bg-white text-[#2D6A4F] shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
-                <i class="fas fa-sun mr-2"></i>Musim Kemarau
-            </button>
-            <button onclick="changeSeasonFilter('penghujan', this)" 
-                    class="filter-btn px-6 py-2 rounded-lg text-xs font-bold transition-all {{ $currentMusimAktif === 'penghujan' ? 'bg-white text-[#2D6A4F] shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
-                <i class="fas fa-cloud-showers-heavy mr-2"></i>Musim Penghujan
-            </button>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="bibit-grid">
-        @forelse($semuaBibit as $b)
-        @php
-            $isSalahMusim = ($b->kategori_musim !== $currentMusimAktif);
-            $isTutup = !$b->is_buka;
-            
-            // Hitung kelas css tambahan
-            $extraClasses = '';
-            if ($b->stok <= 0) {
-                $extraClasses = 'opacity-50 grayscale cursor-not-allowed pointer-events-none';
-            } elseif ($isSalahMusim || $isTutup) {
-                // Efek visual redup sedikit untuk membedakan, tapi tidak hilang agar bisa dilihat
-                $extraClasses = 'border-red-100 bg-red-50/20 grayscale-[0.3] opacity-80';
-            }
-        @endphp
-        
-        <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->stok_awal ?? 0 }}, 0, false, {{ $b->stok }}, {{ $b->sisa_jatah_global ?? 0 }}, '{{ $b->kategori_musim }}', '{{ $currentMusimAktif }}', {{ $isTutup ? 'true' : 'false' }})" 
-             class="bibit-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center hover:border-green-500 hover:shadow-md transition cursor-pointer relative overflow-hidden {{ $extraClasses }}" 
-             data-musim="{{ $b->kategori_musim }}"
-             data-id="{{ $b->id }}">
-            
-            <div class="absolute top-0 right-0 flex flex-col items-end">
-                <span class="bg-gray-100 text-[8px] font-bold px-2 py-1 text-gray-400">Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/y') }}</span>
-            </div>
-
-            <div class="w-full h-32 border-2 border-gray-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden bg-gray-50">
-                @if($b->gambar)
-                    <img src="{{ asset('uploads/bibit/' . $b->gambar) }}" class="object-cover w-full h-full zoomable-image hover:opacity-80 transition">
-                @else
-                    <div class="text-gray-300 flex flex-col items-center">
-                        <i class="fas fa-seedling text-4xl mb-1"></i>
-                        <span class="text-[10px]">Tanpa Gambar</span>
+            <div class="flex flex-col md:flex-row md:items-center justify-between w-full gap-4">
+                <div>
+                    <h3 class="font-bold text-gray-800">2. Pilih Varietas Bibit</h3>
+                    <p class="text-xs text-gray-500">Pilih salah satu bibit yang ingin Anda beli untuk lahan di atas.</p>
+                </div>
+                {{-- Dropdown Filter Musim --}}
+                <div class="relative w-full md:w-max">
+                    <select id="filter-musim" onchange="filterBibitByMusim(this.value)" class="appearance-none w-full md:w-64 p-3 bg-orange-50 border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-orange-700 pr-10">
+                        <option value="all" selected>-- Pilih Musim --</option>
+                        <option value="kemarau">Musim Kemarau</option>
+                        <option value="penghujan">Musim Penghujan</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-orange-600">
+                        <i class="fas fa-filter text-xs"></i>
                     </div>
-                @endif
+                </div>
             </div>
+        </div>
 
-            <h4 class="font-bold text-gray-800 uppercase">{{ $b->nama_bibit }}</h4>
-            <div class="flex justify-center gap-1.5 mb-1">
-                <span class="text-[9px] text-gray-500">Varietas: {{ $b->jenis ?? '-' }}</span>
-                <span class="text-[9px] px-1.5 font-bold rounded {{ $b->kategori_musim === 'kemarau' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700' }}">
-                     {{ $b->kategori_musim === 'kemarau' ? '☀ Kemarau' : '🌧 Penghujan' }}
-                </span>
-            </div>
-            <p class="text-[#2D6A4F] font-black mb-3">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}/kg</p>
-            
-            @if($b->stok > 0)
-                <span class="inline-block px-4 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">Stok: {{ $b->stok }} kg</span>
-            @else
-                <span class="inline-block px-4 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200">Stok Habis</span>
-            @endif
-            
-            {{-- TEKS PERINGATAN MERAH JIKA SALAH MUSIM ATAU TUTUP --}}
-            @if($isSalahMusim)
-                <p class="text-[10px] text-red-600 mt-3 font-black bg-red-100 py-1 px-2 rounded border border-red-200 tracking-tight">
-                    ⚠ Musim {{ ucfirst($b->kategori_musim) }} (Sistem: {{ ucfirst($currentMusimAktif) }})
-                </p>
-            @elseif($isTutup)
-                 <p class="text-[10px] text-amber-600 mt-3 font-black bg-amber-50 py-1 px-2 rounded border border-amber-200 tracking-tight text-center">
-                    🔒 Distribusi Masuk Masa Tunggu
-                </p>
-            @else
-                <p class="text-[9px] text-gray-400 mt-3 font-medium italic">Dibagi proporsional sesuai luas lahan</p>
-            @endif
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="bibit-grid">
+            @forelse($semuaBibit as $b)
+                @php
+                    $isSalahMusim = ($b->kategori_musim !== $currentMusimAktif);
+                    $isTutup = !$b->is_buka;
+                    $isStokHabis = $b->stok <= 0;
+                    
+                    $cardClasses = 'bibit-card p-4 rounded-xl border-2 transition-all cursor-pointer relative ';
+                    if ($isStokHabis) {
+                        $cardClasses .= 'bg-gray-50 border-gray-100 opacity-60 grayscale cursor-not-allowed pointer-events-none';
+                    } elseif ($isSalahMusim || $isTutup) {
+                        $cardClasses .= 'bg-red-50 border-red-100 opacity-80';
+                    } else {
+                        $cardClasses .= 'bg-white border-gray-100 hover:border-green-500 hover:shadow-md';
+                    }
+                @endphp
+                
+                <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->stok }}, {{ $b->sisa_jatah_global ?? 0 }}, '{{ $b->kategori_musim }}', '{{ $currentMusimAktif }}', {{ $isTutup ? 'true' : 'false' }})" 
+                     class="{{ $cardClasses }}" 
+                     data-id="{{ $b->id }}"
+                     data-musim="{{ $b->kategori_musim }}">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                            @if($b->gambar)
+                                <img src="{{ asset('uploads/bibit/' . $b->gambar) }}" class="w-full h-full object-cover">
+                            @else
+                                <div class="w-full h-full flex items-center justify-center text-gray-300">
+                                    <i class="fas fa-seedling"></i>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-gray-900 truncate uppercase text-sm">{{ $b->nama_bibit }}</h4>
+                            <p class="text-[#2D6A4F] font-black text-xs">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}/kg</p>
+                            <div class="flex items-center gap-1 mt-1">
+                                <span class="text-[9px] px-1.5 font-bold rounded {{ $b->kategori_musim === 'kemarau' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700' }}">
+                                    {{ $b->kategori_musim === 'kemarau' ? '☀ Kemarau' : '🌧 Penghujan' }}
+                                </span>
+                                <span class="text-[9px] font-bold text-gray-500">Stok: {{ $b->stok }} kg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if($isSalahMusim)
+                        <div class="mt-2 text-[8px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded text-center">⚠ Saluran dikunci (Salah Musim)</div>
+                    @elseif($isTutup)
+                        <div class="mt-2 text-[8px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded text-center">🔒 Distribusi Masa Tunggu</div>
+                    @endif
+                </div>
+            @empty
+                <div class="col-span-full py-8 text-center text-gray-500 italic">Tidak ada bibit yang tersedia.</div>
+            @endforelse
         </div>
-        @empty
-        <div class="col-span-3 bg-white p-10 rounded-xl text-center border border-dashed border-gray-300">
-            <i class="fas fa-box-open text-4xl text-gray-300 mb-3"></i>
-            <p class="text-gray-500 italic">Belum ada bibit yang tersedia dari Admin.</p>
-        </div>
-        @endforelse
     </div>
 
     {{-- RINGKASAN PESANAN DENGAN FORM --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-        <h3 class="text-xl font-bold text-gray-800 mb-6 uppercase tracking-wider">Ringkasan Pesanan</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-6 uppercase tracking-wider">3. Detail & Konfirmasi Pesanan</h3>
         
         <form id="lahanForm" action="{{ route('petani.proses_beli') }}" method="POST">
             @csrf
@@ -177,7 +160,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
                         <div>
                             <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Analisis Perhitungan</p>
-                            <p class="text-[10px] text-gray-600 font-mono italic">(Perhitungan otomatis sesuai sistem)</p>
+                            <p class="text-[10px] text-gray-600 font-mono italic">(Jatah otomatis sesuai luas lahan)</p>
                         </div>
                         <div class="text-right">
                             <p class="text-[10px] text-orange-400 uppercase font-black tracking-widest mb-1">Hak Jatah Maksimal</p>
@@ -191,10 +174,10 @@
                             <div class="relative">
                                 <input type="number" step="0.1" name="jumlah_beli" id="input-jumlah-beli" value="0" min="0.1" class="w-full p-4 bg-white border-2 border-green-600 rounded-xl font-black text-[#2D6A4F] text-xl focus:ring-4 focus:ring-green-100 outline-none transition" oninput="hitungTotalManual()">
                                 <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                                    <span class="font-bold text-gray-400 uppercase text-xs italic">Sesuai Kebutuhan</span>
+                                    <span class="font-bold text-gray-400 uppercase text-xs italic">Kg</span>
                                 </div>
                             </div>
-                            <p class="text-[10px] text-gray-400 mt-2 italic">* Anda boleh mengambil kurang dari atau sama dengan hak jatah maksimal.</p>
+                            <p class="text-[10px] text-gray-400 mt-2 italic">* Maksimal pengambilan sesuai hak jatah Anda.</p>
                         </div>
 
                         <div class="text-right">
@@ -214,9 +197,9 @@
                                 <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 group-has-[:checked]:bg-green-600 group-has-[:checked]:text-white">
                                     <i class="fas fa-credit-card text-xs"></i>
                                 </div>
-                                <span class="font-bold text-sm text-gray-800">Otomatis</span>
+                                <span class="font-bold text-sm text-gray-800">Otomatis (Midtrans)</span>
                             </div>
-                            <p class="text-[10px] text-gray-400">VA, QRIS, E-Wallet via Midtrans</p>
+                            <p class="text-[10px] text-gray-400">VA, QRIS, E-Wallet</p>
                         </label>
 
                         {{-- Opsi Transfer Manual --}}
@@ -228,7 +211,7 @@
                                 </div>
                                 <span class="font-bold text-sm text-gray-800">Transfer Manual</span>
                             </div>
-                            <p class="text-[10px] text-gray-400">Upload bukti transfer bank</p>
+                            <p class="text-[10px] text-gray-400">Upload bukti transfer</p>
                         </label>
 
                         {{-- Opsi Tunai (Kasir) --}}
@@ -238,9 +221,9 @@
                                 <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 group-has-[:checked]:bg-green-600 group-has-[:checked]:text-white">
                                     <i class="fas fa-money-bill-wave text-xs"></i>
                                 </div>
-                                <span class="font-bold text-sm text-gray-800">Bayar Langsung</span>
+                                <span class="font-bold text-sm text-gray-800">Bayar Tunai</span>
                             </div>
-                            <p class="text-[10px] text-gray-400">Bayar tunai di lokasi (Kasir)</p>
+                            <p class="text-[10px] text-gray-400">Bayar di lokasi</p>
                         </label>
                     </div>
                 </div>
@@ -259,29 +242,21 @@
 
 <script>
     let currentHarga = 0;
-    let activeSeasonFilter = '{{ $currentMusimAktif }}';
+    let currentQuota = 0;
+    const purchasesMap = @json($purchases ?? []);
+    let isSelectedWrongSeason = false;
+    let isDistributionClosed = false;
 
-    function changeSeasonFilter(season, btn) {
-        activeSeasonFilter = season;
-        
-        // Update Buttons UI
-        document.querySelectorAll('.filter-btn').forEach(b => {
-             b.classList.remove('bg-white', 'text-[#2D6A4F]', 'shadow-sm');
-             b.classList.add('text-gray-500', 'hover:text-gray-700');
-        });
-        btn.classList.remove('text-gray-500', 'hover:text-gray-700');
-        btn.classList.add('bg-white', 'text-[#2D6A4F]', 'shadow-sm');
-
-        // Filter Cards
+    function filterBibitByMusim(musim) {
         document.querySelectorAll('.bibit-card').forEach(card => {
-            if (card.getAttribute('data-musim') === season) {
+            if (musim === 'all' || card.getAttribute('data-musim') === musim) {
                 card.classList.remove('hidden');
             } else {
                 card.classList.add('hidden');
             }
         });
         
-        // Reset selection if the currently selected bibit is now hidden
+        // Reset pilihan bibit jika yang sedang dipilih sekarang disembunyikan
         const selectedId = document.getElementById('input-bibit-id').value;
         if (selectedId) {
             const selectedCard = document.querySelector(`.bibit-card[data-id="${selectedId}"]`);
@@ -291,27 +266,10 @@
         }
     }
 
-    // Run filter on load
-    document.addEventListener('DOMContentLoaded', () => {
-        const initialBtn = document.querySelector(`.filter-btn:contains('Musim ${activeSeasonFilter.charAt(0).toUpperCase() + activeSeasonFilter.slice(1)}')`);
-        // Note: :contains isn't standard JS, just use logic
-        const btns = document.querySelectorAll('.filter-btn');
-        btns.forEach(b => {
-            if (b.innerText.toLowerCase().includes(activeSeasonFilter)) {
-                changeSeasonFilter(activeSeasonFilter, b);
-            }
-        });
-    });
-
-
-    let currentQuota = 0;
-    const totalLuasPetani = {{ $totalLuasPetani ?? 0 }};
-    const totalLuasSemuaPetani = {{ \App\Models\Lahan::where('status','disetujui')->sum('luas_lahan') }};
-    const purchasesMap = @json($purchases ?? []);
-
     function resetPilihanBibit() {
         document.querySelectorAll('.bibit-card').forEach(card => {
-            card.classList.remove('border-green-500', 'ring-2', 'ring-green-200');
+            card.classList.remove('border-green-600', 'bg-green-50', 'ring-2', 'ring-green-100');
+            card.classList.add('border-gray-100', 'bg-white');
         });
         document.getElementById('placeholder-text').classList.remove('hidden');
         document.getElementById('detail-pesanan').classList.add('hidden');
@@ -319,38 +277,14 @@
         document.getElementById('btn-bayar').disabled = true;
         document.getElementById('total-harga').innerText = 'Rp 0';
         
-        document.getElementById('input-lahan-id').value = '';
         document.getElementById('input-bibit-id').value = '';
         document.getElementById('input-jumlah-beli').value = 0;
+        isSelectedWrongSeason = false;
+        isDistributionClosed = false;
     }
 
-    // FIX PERBAIKAN LOGIKA PENGUNCIAN DI JAVASCRIPT SESUAI REVISI DOSEN
-    function pilihBibit(id, nama, harga, stokAwal = 0, luasRef = 0, isTerbuka = false, currentStok = 0, sisaJatahGlobal = 0, musimBibit, musimAktif, isTutup = false) {
+    async function pilihBibit(id, nama, harga, currentStok = 0, sisaJatahGlobal = 0, musimBibit, musimAktif, isTutup = false) {
         
-        // 1. CEK DISTRIBUSI: Jika distribusi sedang ditutup oleh Admin
-        if (isTutup) {
-             Swal.fire({
-                icon: 'warning',
-                title: 'Distribusi Ditutup',
-                text: 'Maaf, distribusi bibit ini sedang ditutup sementara oleh Admin. Anda hanya dapat melihat informasi varietas saat ini.',
-                confirmButtonColor: '#D97706'
-            });
-            resetPilihanBibit();
-            return;
-        }
-
-        // 2. CEK MUSIM: Jika musim tidak cocok dengan periode aktif, langsung kunci/blokir transaksi
-        if (musimBibit !== musimAktif) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Transaksi Dikunci!',
-                text: 'Bibit ' + nama + ' hanya dapat ditransaksikan pada Musim ' + musimBibit.toUpperCase() + '. Saat ini sedang berjalan Musim ' + musimAktif.toUpperCase() + '.',
-                confirmButtonColor: '#DC3545'
-            });
-            resetPilihanBibit();
-            return; // Gagalkan fungsi, tidak diizinkan masuk ke ringkasan pesanan
-        }
-
         const selectLahan = document.getElementById('pilih-lahan');
         const selectedOption = selectLahan.options[selectLahan.selectedIndex];
         
@@ -358,64 +292,103 @@
             Swal.fire({
                 icon: 'warning',
                 title: 'Lahan Belum Dipilih',
-                text: 'Silakan pilih lokasi lahan Anda terlebih dahulu untuk melihat jatah hak ambil.',
+                text: 'Silakan pilih lokasi lahan Anda terlebih dahulu pada langkah pertama.',
                 confirmButtonColor: '#2D6A4F'
             });
             return;
         }
 
-        currentHarga = harga;
-        const luasLahan = parseFloat(selectedOption.getAttribute('data-luas'));
-        
-        // FORMULA BARU (SESUAI GAMBAR): (luas lahan blok / total seluruh luas lahan global) * stok bibit admin
-        let hakLahanIni = totalLuasSemuaPetani > 0 
-            ? (luasLahan / totalLuasSemuaPetani) * currentStok 
-            : 0;
+        isDistributionClosed = isTutup;
+        isSelectedWrongSeason = (musimBibit !== musimAktif);
 
-        const lahanId = selectedOption.value;
-        const sudahDariLahan = parseFloat((purchasesMap[id] && purchasesMap[id][lahanId]) ? purchasesMap[id][lahanId] : 0) || 0;
-
-        // Jatah akhir = Hitungan rumus - yang sudah pernah dibeli di lahan ini
-        let hakFinal = Math.max(0, hakLahanIni - sudahDariLahan);
-        
-        // Tetap pastikan tidak melebihi sisa stok global (opsional safety)
-        hakFinal = Math.min(hakFinal, sisaJatahGlobal);
-
-        // Pembulatan presisi satu angka di belakang koma
-        // Pembulatan presisi satu angka di belakang koma (Sesuai Permintaan)
-        hakFinal = Math.round(hakFinal * 10) / 10;
-
-        currentQuota = hakFinal;
-
-        document.getElementById('input-lahan-id').value = selectedOption.value;
-        document.getElementById('input-bibit-id').value = id;
-        document.getElementById('input-jumlah-beli').value = hakFinal;
-        document.getElementById('input-jumlah-beli').max = hakFinal;
-        
-        document.getElementById('placeholder-text').classList.add('hidden');
-        document.getElementById('detail-pesanan').classList.remove('hidden');
-        document.getElementById('label-bibit').innerText = 'Bibit ' + nama;
-        document.getElementById('berat-estimasi').innerText = hakFinal + ' Kg';
-        document.getElementById('harga-item').innerText = 'Rp ' + harga.toLocaleString('id-ID') + ' /kg';
-        
-        // Cek jika jatah sudah benar-benar nol
-        if (hakFinal <= 0) {
-             Swal.fire({
+        if (isDistributionClosed || isSelectedWrongSeason) {
+            Swal.fire({
                 icon: 'info',
-                title: 'Jatah Habis Untuk Blok Ini',
-                text: 'Anda sudah mengambil jatah maksimal untuk lokasi lahan ini.',
-                confirmButtonColor: '#2D6A4F'
+                title: 'Status Bibit',
+                text: isDistributionClosed 
+                    ? 'Maaf, distribusi bibit ini sedang ditutup oleh Admin.' 
+                    : 'Bibit ini hanya dapat dibeli pada ' + musimBibit.toUpperCase() + '.',
+                confirmButtonColor: '#3085d6'
             });
-            resetPilihanBibit();
-            return;
         }
 
-        document.querySelectorAll('.bibit-card').forEach(card => {
-            card.classList.remove('border-green-500', 'ring-2', 'ring-green-200');
+        // Loading
+        Swal.fire({
+            title: 'Verifikasi Jatah...',
+            text: 'Kami sedang menghitung hak Anda berdasarkan data pengajuan.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading() }
         });
-        event.currentTarget.classList.add('border-green-500', 'ring-2', 'ring-green-200');
 
-        hitungTotalManual();
+        try {
+            const response = await fetch('{{ route("petani.cek_jatah") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    bibit_id: id,
+                    lahan_id: selectedOption.value
+                })
+            });
+            
+            const result = await response.json();
+            Swal.close();
+
+            if (result.status === 'info' || result.status === 'error') {
+                Swal.fire({
+                    icon: result.status,
+                    title: 'Informasi Jatah',
+                    text: result.message,
+                    confirmButtonColor: '#2D6A4F'
+                });
+                resetPilihanBibit();
+                return;
+            }
+
+            const jatah = result.sisa || 0;
+            currentHarga = harga;
+            currentQuota = jatah;
+
+            document.getElementById('input-lahan-id').value = selectedOption.value;
+            document.getElementById('input-bibit-id').value = id;
+            document.getElementById('input-jumlah-beli').value = jatah;
+            
+            document.getElementById('placeholder-text').classList.add('hidden');
+            document.getElementById('detail-pesanan').classList.remove('hidden');
+            document.getElementById('label-bibit').innerText = 'Bibit ' + nama;
+            document.getElementById('berat-estimasi').innerText = jatah + ' Kg';
+            document.getElementById('harga-item').innerText = 'Rp ' + harga.toLocaleString('id-ID') + ' /kg';
+            
+            if (jatah <= 0) {
+                 Swal.fire({
+                    icon: 'info',
+                    title: 'Jatah Tidak Tersedia',
+                    text: 'Anda tidak memiliki sisa jatah untuk varietas ini pada lahan yang dipilih.',
+                    confirmButtonColor: '#2D6A4F'
+                });
+                resetPilihanBibit();
+                return;
+            }
+
+            document.querySelectorAll('.bibit-card').forEach(card => {
+                card.classList.remove('border-green-600', 'bg-green-50', 'ring-2', 'ring-green-100');
+                card.classList.add('border-gray-100', 'bg-white');
+            });
+            const activeCard = document.querySelector(`.bibit-card[data-id="${id}"]`);
+            if (activeCard) {
+                activeCard.classList.remove('border-gray-100', 'bg-white');
+                activeCard.classList.add('border-green-600', 'bg-green-50', 'ring-2', 'ring-green-100');
+            }
+
+            hitungTotalManual();
+
+        } catch (error) {
+            Swal.close();
+            console.error('Check Quota Error:', error);
+            Swal.fire('Error', 'Gagal memverifikasi jatah ke server. Periksa koneksi Anda.', 'error');
+        }
     }
 
     function hitungTotalManual() {
@@ -423,7 +396,6 @@
         let qty = parseFloat(inputVal) || 0;
         const btnBayar = document.getElementById('btn-bayar');
 
-        // Proteksi Jatah Maksimal: Bulatkan input ke 1 desimal
         qty = Math.round(qty * 10) / 10;
 
         if (qty > currentQuota) {
@@ -431,8 +403,8 @@
             document.getElementById('input-jumlah-beli').value = qty;
             Swal.fire({
                 icon: 'error',
-                title: 'Melebihi Jatah Maksimal',
-                text: 'Berdasarkan rumus perhitungan luas lahan, jatah maksimal Anda untuk blok ini adalah ' + currentQuota + ' Kg.',
+                title: 'Melebihi Jatah',
+                text: 'Jatah maksimal Anda adalah ' + currentQuota + ' Kg.',
                 confirmButtonColor: '#2D6A4F'
             });
         }
@@ -441,16 +413,51 @@
         document.getElementById('input-total-harga').value = Math.round(total);
         document.getElementById('total-harga').innerText = 'Rp ' + Math.round(total).toLocaleString('id-ID');
 
-        // Validasi tombol pembayaran
-        if (qty > 0 && document.getElementById('input-bibit-id').value && qty <= currentQuota) {
+        const instruksi = document.getElementById('instruksi-bayar');
+        if (qty > 0 && document.getElementById('input-bibit-id').value && qty <= currentQuota && !isSelectedWrongSeason && !isDistributionClosed) {
             btnBayar.disabled = false;
             btnBayar.classList.remove('bg-gray-400', 'cursor-not-allowed', 'opacity-50');
-            btnBayar.classList.add('bg-[#D97706]', 'hover:bg-[#B45309]', 'shadow-orange-200');
+            btnBayar.classList.add('bg-[#D97706]', 'hover:bg-[#B45309]');
+            instruksi.innerText = "Klik tombol di bawah untuk memproses pesanan dan melakukan pembayaran";
+            instruksi.classList.remove('text-red-500', 'font-black');
+            instruksi.classList.add('text-gray-400', 'italic');
         } else {
             btnBayar.disabled = true;
             btnBayar.classList.add('bg-gray-400', 'cursor-not-allowed', 'opacity-50');
-            btnBayar.classList.remove('bg-[#D97706]', 'hover:bg-[#B45309]', 'shadow-orange-200');
+            btnBayar.classList.remove('bg-[#D97706]', 'hover:bg-[#B45309]');
+            
+            if (isDistributionClosed) {
+                instruksi.innerText = "🔒 Transaksi dikunci (Distribusi Tutup)";
+                instruksi.classList.add('text-red-500', 'font-black');
+            } else if (isSelectedWrongSeason) {
+                instruksi.innerText = "⚠ Transaksi dikunci (Salah Musim)";
+                instruksi.classList.add('text-red-500', 'font-black');
+            }
         }
     }
+
+    // Auto-select bibit if passed via URL
+    document.addEventListener('DOMContentLoaded', () => {
+        // Inisialisasi Filter Musim sesuai default select
+        const initialMusim = document.getElementById('filter-musim').value;
+        filterBibitByMusim(initialMusim);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const bibitId = urlParams.get('bibit_id');
+        if (bibitId) {
+            const targetCard = document.querySelector(`.bibit-card[data-id="${bibitId}"]`);
+            if (targetCard) {
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const selectLahan = document.getElementById('pilih-lahan');
+                if (selectLahan.options.length === 2) { 
+                    selectLahan.selectedIndex = 1;
+                    targetCard.click();
+                } else {
+                    targetCard.classList.add('ring-4', 'ring-orange-400');
+                    setTimeout(() => targetCard.classList.remove('ring-4', 'ring-orange-400'), 3000);
+                }
+            }
+        }
+    });
 </script>
 @endsection

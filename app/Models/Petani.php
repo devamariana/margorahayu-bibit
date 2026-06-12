@@ -43,4 +43,9 @@ class Petani extends Model
     {
         return $this->hasMany(Lahan::class, 'petani_id');
     }
+
+    public function pengajuans()
+    {
+        return $this->hasMany(Pengajuan::class, 'petani_id');
+    }
 }

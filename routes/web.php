@@ -68,6 +68,7 @@ Route::middleware(['auth:admin', 'checkRole:admin'])->group(function () {
     Route::post('/admin/transfer-jatah/proses', [AdminController::class, 'prosesPindahJatah'])->name('admin.proses_transfer');
 
     Route::get('/admin/transfer-jatah/cek-sisa', [AdminController::class, 'cekSisaJatah'])->name('admin.cek_sisa_jatah');
+    Route::get('/admin/get-petani-lahans/{id}', [AdminController::class, 'getPetaniLahans']);
     
     // Menu Admin Lainnya
     Route::get('/admin/data-periode', [PeriodeController::class, 'index'])->name('admin.data_periode');
@@ -79,6 +80,8 @@ Route::middleware(['auth:admin', 'checkRole:admin'])->group(function () {
     Route::post('/admin/verifikasi-lahan/{id}', [AdminController::class, 'verifikasiLahan'])->name('admin.verifikasi_lahan');
     Route::get('/admin/riwayat-transaksi', [AdminController::class, 'riwayatTransaksi'])->name('admin.riwayat_transaksi');
     Route::post('/admin/verifikasi-transaksi/{id}', [AdminController::class, 'verifikasiTransaksi'])->name('admin.verifikasi_transaksi');
+    Route::get('/admin/data-pengajuan', [AdminController::class, 'dataPengajuan'])->name('admin.data_pengajuan');
+    Route::post('/admin/verifikasi-pengajuan/{id}', [AdminController::class, 'verifikasiPengajuan'])->name('admin.verifikasi_pengajuan');
     Route::get('/admin/notifikasi/baca-semua', [AdminController::class, 'bacaSemuaNotifikasi']);
 
     // Kelola Laporan Excel & PDF (Di-nonaktifkan atas permintaan user)
@@ -101,6 +104,7 @@ Route::middleware(['auth:petani', 'checkRole:petani'])->group(function () {
     Route::delete('/petani/lahan/{id}', [PetaniController::class, 'hapusLahan'])->name('petani.hapus_lahan');
 
     // Informasi & Beli Bibit
+    Route::get('/informasi-bibit', [PetaniController::class, 'informasiBibit'])->name('petani.informasi_bibit');
     Route::get('/beli-bibit', [PetaniController::class, 'beliBibit'])->name('petani.beli_bibit');
     Route::post('/beli-bibit/proses', [PetaniController::class, 'prosesBeliBibit'])->name('petani.proses_beli');
     Route::post('/beli-bibit/upload-bukti/{id}', [PetaniController::class, 'uploadBukti'])->name('petani.upload_bukti');
@@ -111,6 +115,12 @@ Route::middleware(['auth:petani', 'checkRole:petani'])->group(function () {
     Route::get('/riwayat-pembelian/sync/{id}', [PetaniController::class, 'syncStatus'])->name('petani.riwayat.sync');
     Route::get('/transfer-jatah', [PetaniController::class, 'transferJatah'])->name('petani.transfer_jatah');
     Route::post('/transfer-jatah/proses', [PetaniController::class, 'prosesTransfer'])->name('petani.proses_transfer');
+    
+    // Pengajuan Bibit (Baru)
+    Route::get('/petani/pengajuan', [PetaniController::class, 'pengajuan'])->name('petani.pengajuan');
+    Route::post('/petani/pengajuan/store', [PetaniController::class, 'storePengajuan'])->name('petani.store_pengajuan');
+    Route::delete('/petani/pengajuan/{id}', [PetaniController::class, 'hapusPengajuan'])->name('petani.hapus_pengajuan');
+    Route::post('/petani/cek-jatah', [PetaniController::class, 'cekJatah'])->name('petani.cek_jatah');
     
 
 

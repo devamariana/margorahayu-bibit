@@ -132,38 +132,39 @@
             <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">3 Riwayat Terakhir</h3>
         </div>
         <div class="overflow-x-auto overflow-y-auto max-h-[300px] relative">
-            <table class="w-full text-left">
-                <thead class="bg-white text-gray-400 text-[10px] font-bold uppercase tracking-widest sticky top-0 z-10">
-                    <tr>
-                        <th class="p-4 border-b">Tanggal</th>
-                        <th class="p-4 border-b">Komoditas</th>
-                        <th class="p-4 border-b">Jumlah</th>
-                        <th class="p-4 border-b">Status</th>
-                    </tr>
-                </thead>
-
-                {{-- Jika belum ada pengambilan sukses, tabel hanya menampilkan pesan kosong --}}
-                <tbody class="text-sm font-medium text-gray-600">
-                    @forelse($riwayat as $r)
-                        <tr class="border-b hover:bg-gray-50 transition">
-                            <td class="p-4">{{ $r->created_at->format('d M Y') }}</td>
-                            <td class="p-4 text-gray-800">{{ $r->bibit->nama_bibit ?? 'Bibit' }}</td>
-                            <td class="p-4 font-bold text-gray-700">{{ $r->jumlah_beli }} Kg</td>
-                            <td class="p-4">
-                                <span class="px-2 py-1 rounded-md {{ $r->status_pembayaran == 'sukses' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }} text-[10px] font-bold uppercase">
-                                    {{ str_replace('_', ' ', $r->status_pembayaran) }}
-                                </span>
-                            </td>
-                        </tr>
-                    @empty
+            @if(count($riwayat) > 0)
+                <table class="w-full text-left">
+                    <thead class="bg-white text-gray-400 text-[10px] font-bold uppercase tracking-widest sticky top-0 z-10">
                         <tr>
-                            <td colspan="4" class="p-8 text-center text-gray-400 italic">
-                                Belum ada riwayat pengambilan bibit.
-                            </td>
+                            <th class="p-4 border-b">Tanggal</th>
+                            <th class="p-4 border-b">Komoditas</th>
+                            <th class="p-4 border-b">Jumlah</th>
+                            <th class="p-4 border-b">Status</th>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="text-sm font-medium text-gray-600">
+                        @foreach($riwayat as $r)
+                            <tr class="border-b hover:bg-gray-50 transition">
+                                <td class="p-4">{{ $r->created_at->format('d M Y') }}</td>
+                                <td class="p-4 text-gray-800">{{ $r->bibit->nama_bibit ?? 'Bibit' }}</td>
+                                <td class="p-4 font-bold text-gray-700">{{ $r->jumlah_beli }} Kg</td>
+                                <td class="p-4">
+                                    <span class="px-2 py-1 rounded-md {{ $r->status_pembayaran == 'sukses' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }} text-[10px] font-bold uppercase">
+                                        {{ str_replace('_', ' ', $r->status_pembayaran) }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @else
+                <div class="p-12 text-center">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-gray-50 rounded-full mb-3">
+                        <i class="fas fa-history text-gray-300"></i>
+                    </div>
+                    <p class="text-xs text-gray-400 italic font-medium uppercase tracking-widest">Belum Ada Riwayat Pengambilan Bibit</p>
+                </div>
+            @endif
         </div>
     </div>
 </div>

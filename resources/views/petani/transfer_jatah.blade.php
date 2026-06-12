@@ -25,20 +25,51 @@
             <form action="{{ route('petani.proses_transfer') }}" method="POST" class="space-y-6">
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-2 md:col-span-2">
+                    {{-- DROPDOWN LAHAN BARU --}}
+                    <div class="space-y-2">
+                        <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pilih Blok Lahan</label>
+                        <select id="lahan_id" onchange="updateLahanURL(this.value)" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800" required>
+                            <option value="">-- Pilih Lokasi Lahan --</option>
+                            @php $lahans = \App\Models\Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->get(); @endphp
+                            @foreach($lahans as $l)
+                                <option value="{{ $l->id }}" {{ request('lahan_id') == $l->id ? 'selected' : '' }}>
+                                    {{ $l->nama_blok }} ({{ $l->luas_lahan }} m²)
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- DROPDOWN BIBIT --}}
+                    <div class="space-y-2">
                         <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pilih Bibit</label>
-                        <select name="bibit_id" onchange="window.location.href='?bibit_id=' + this.value" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800" required>
+                        <select name="bibit_id" onchange="updateBibitURL(this.value)" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800" required {{ !request('lahan_id') ? 'disabled opacity-50' : '' }}>
                             <option value="">-- Pilih Bibit Aktif --</option>
                             @foreach($bibitsTerbuka as $bt)
-                                <option value="{{ $bt->id }}" {{ isset($selectedBibit) && $selectedBibit->id == $bt->id ? 'selected' : '' }}>{{ $bt->nama_bibit }} ({{ $bt->jenis }})</option>
+                                <option value="{{ $bt->id }}" {{ isset($selectedBibit) && $selectedBibit->id == $bt->id ? 'selected' : '' }}>
+                                    [{{ strtoupper($bt->kategori_musim) }}] {{ $bt->nama_bibit }} ({{ $bt->jenis }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
                 </div>
-                <div class="bg-green-50 border border-green-100 p-4 rounded-2xl text-sm text-green-700 font-bold">
-                    <i class="fas fa-user-shield mr-2"></i>
-                    Jatah akan dikembalikan langsung ke Admin. Tidak perlu memilih petani penerima.
-                </div>
+
+                {{-- Hidden input untuk simpan lahan_id di form submit --}}
+                <input type="hidden" name="lahan_id" value="{{ request('lahan_id') }}">
+                @php
+                    $isSalahMusimTransfer = isset($selectedBibit) && isset($currentMusimAktif) && ($selectedBibit->kategori_musim !== $currentMusimAktif);
+                @endphp
+
+                @if($isSalahMusimTransfer)
+                    <div class="bg-red-50 border border-red-200 p-4 rounded-2xl text-sm text-red-700 font-black shadow-sm">
+                        <i class="fas fa-lock mr-2"></i>
+                        Transaksi Terkunci: Bibit ini hanya bisa dikembalikan pada Musim {{ strtoupper($selectedBibit->kategori_musim) }}. Saat ini sedang berjalan Musim {{ strtoupper($currentMusimAktif) }}.
+                    </div>
+                @else
+                    <div class="bg-green-50 border border-green-100 p-4 rounded-2xl text-sm text-green-700 font-bold">
+                        <i class="fas fa-user-shield mr-2"></i>
+                        Jatah akan dikembalikan langsung ke Admin.
+                    </div>
+                @endif
 
                 <div class="space-y-2">
                     <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Jumlah Jatah (Kg) 
@@ -50,35 +81,42 @@
                         <input type="number" name="jumlah_kg" step="0.1" 
                                min="{{ $sisaJatah > 0 ? '0.1' : '0' }}" 
                                max="{{ $sisaJatah }}" 
-                               {{ $sisaJatah <= 0 ? 'readonly disabled' : '' }}
-                               class="block w-full px-5 py-4 {{ $sisaJatah <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-green-700' }} border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-black text-2xl" 
+                               {{ $sisaJatah <= 0 || $isSalahMusimTransfer ? 'readonly disabled' : '' }}
+                               class="block w-full px-5 py-4 {{ $sisaJatah <= 0 || $isSalahMusimTransfer ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-green-700' }} border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-black text-2xl" 
                                placeholder="0" required>
                         <div class="absolute inset-y-0 right-5 flex items-center pointer-events-none text-gray-400 font-bold italic text-xs">
                             Kg
                         </div>
                     </div>
-                    @if(isset($selectedBibit) && $sisaJatah <= 0)
-                        <p class="text-[10px] text-red-500 font-bold italic mt-1">
-                            <i class="fas fa-exclamation-triangle"></i> Anda tidak memiliki sisa jatah untuk bibit ini sehingga tidak dapat melakukan transfer.
-                        </p>
+                    @if(isset($selectedBibit))
+                        @if($isSalahMusimTransfer)
+                            <p class="text-[10px] text-red-500 font-bold italic mt-1 uppercase">
+                                <i class="fas fa-times-circle"></i> Pengembalian ditutup karena bukan musimnya.
+                            </p>
+                        @elseif($sisaJatah <= 0)
+                            <p class="text-[10px] text-red-500 font-bold italic mt-1">
+                                <i class="fas fa-exclamation-triangle"></i> Anda tidak memiliki sisa jatah untuk bibit ini sehingga tidak dapat melakukan transfer.
+                            </p>
+                        @endif
                     @endif
                 </div>
 
-                <div class="space-y-2">
-                    <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pesan / Alasan (Opsional)</label>
-                    <textarea name="alasan" rows="3" class="block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none text-gray-700" placeholder="Contoh: Transfer untuk membantu musim tanam rekan saya."></textarea>
-                </div>
+                {{-- BAGIAN PESAN DIHAPUS SESUAI PERMINTAAN USER --}}
 
+                @if(isset($selectedBibit))
                 <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex items-start gap-3">
                     <i class="fas fa-info-circle text-orange-500 mt-1"></i>
                     <p class="text-xs text-orange-700 leading-relaxed font-medium">
                         <strong>Perhatian:</strong> Dengan memproses ini, jatah <strong>{{ $selectedBibit->nama_bibit ?? 'Bibit' }}</strong> Anda akan berkurang secara permanen dan dikembalikan ke Admin. Tindakan ini tidak dapat dibatalkan.
                     </p>
                 </div>
+                @endif
 
-                <button type="submit" {{ !isset($selectedBibit) || $sisaJatah <= 0 ? 'disabled' : '' }} class="w-full {{ !isset($selectedBibit) || $sisaJatah <= 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#2D6A4F] hover:bg-[#1B4332]' }} text-white font-black py-4 rounded-2xl shadow-lg shadow-green-100 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-2">
+                <button type="submit" {{ !isset($selectedBibit) || $sisaJatah <= 0 || $isSalahMusimTransfer ? 'disabled' : '' }} class="w-full {{ !isset($selectedBibit) || $sisaJatah <= 0 || $isSalahMusimTransfer ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#2D6A4F] hover:bg-[#1B4332]' }} text-white font-black py-4 rounded-2xl shadow-lg shadow-green-100 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-2">
                     @if(!isset($selectedBibit))
                         PILIH BIBIT TERLEBIH DAHULU
+                    @elseif($isSalahMusimTransfer)
+                        TRANSAKSI MUSIM DIKUNCI
                     @elseif($sisaJatah <= 0)
                         SALDO JATAH KOSONG
                     @else
@@ -94,12 +132,25 @@
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 text-center relative overflow-hidden">
                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Saldo Jatah Tersedia</p>
                 <div class="relative z-10">
-                    <span class="text-5xl font-black text-green-600 leading-none">{{ number_format($sisaJatah, 1) }}</span>
-                    <span class="text-sm font-bold text-gray-400 ml-1">Kg</span>
+                    @if(isset($selectedBibit) && request('lahan_id'))
+                        <span class="text-5xl font-black text-green-600 leading-none">{{ number_format($sisaJatah, 1) }}</span>
+                        <span class="text-sm font-bold text-gray-400 ml-1">Kg</span>
+                    @elseif(request('lahan_id'))
+                        <span class="text-4xl font-black text-gray-300 leading-none italic">Pilih Bibit</span>
+                    @else
+                        <div class="py-2">
+                             <i class="fas fa-map-marked-alt text-gray-200 text-3xl mb-2 block mx-auto"></i>
+                             <span class="text-2xl font-black text-gray-300 leading-none italic uppercase tracking-tighter">Pilih Lahan</span>
+                        </div>
+                    @endif
                 </div>
-                <p class="text-[9px] font-bold text-gray-500 mt-2 uppercase tracking-widest">{{ $selectedBibit->nama_bibit ?? 'Silakan Pilih Bibit' }}</p>
+                <p class="text-[9px] font-bold text-gray-500 mt-2 uppercase tracking-widest">{{ $selectedBibit->nama_bibit ?? 'Menunggu Pilihan' }}</p>
                 <div class="mt-4 pt-4 border-t border-gray-50">
-                    <p class="text-[10px] text-gray-400 italic">Jatah akan muncul setelah Anda memilih jenis bibit di form sebelah kiri.</p>
+                    @if(!request('lahan_id'))
+                        <p class="text-[10px] text-orange-500 font-bold italic">Tentukan lahan terlebih dahulu untuk memuat jatah proporsional.</p>
+                    @else
+                        <p class="text-[10px] text-gray-400 italic">Jatah akan muncul setelah Anda memilih jenis bibit.</p>
+                    @endif
                 </div>
             </div>
 
@@ -137,4 +188,19 @@
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
 </style>
+<script>
+    function updateLahanURL(lahanId) {
+        window.location.href = '?lahan_id=' + lahanId;
+    }
+
+    function updateBibitURL(bibitId) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const lahanId = urlParams.get('lahan_id');
+        if (lahanId) {
+            window.location.href = '?lahan_id=' + lahanId + '&bibit_id=' + bibitId + '&select=manual';
+        } else {
+            alert('Pilih lahan terlebih dahulu!');
+        }
+    }
+</script>
 @endsection

@@ -31,9 +31,16 @@
             <i class="fas fa-map-marked-alt mr-3 group-hover:scale-110 transition"></i> Data Lahan
         </a>
 
+        <a href="{{ route('petani.informasi_bibit') }}" 
+           class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('petani.informasi_bibit') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
+            <i class="fas fa-info-circle mr-3 group-hover:scale-110 transition"></i> Informasi Bibit
+        </a>
+
+
+
         <a href="{{ route('petani.beli_bibit') }}" 
            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('petani.beli_bibit') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
-            <i class="fas fa-seedling mr-3 group-hover:scale-110 transition"></i> Informasi & Beli Bibit
+            <i class="fas fa-shopping-cart mr-3 group-hover:scale-110 transition"></i> Pesan Bibit
         </a>
 
         <a href="{{ route('petani.riwayat') }}" 

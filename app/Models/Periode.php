@@ -15,4 +15,9 @@ class Periode extends Model
     {
         return $this->hasMany(Bibit::class, 'periode_id');
     }
+
+    public function pengajuans()
+    {
+        return $this->hasMany(Pengajuan::class, 'periode_id');
+    }
 }

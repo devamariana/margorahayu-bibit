@@ -42,4 +42,9 @@ class Lahan extends Model
     {
         return $this->hasMany(Transaksi::class, 'lahan_id');
     }
+
+    public function pengajuans()
+    {
+        return $this->hasMany(Pengajuan::class, 'lahan_id');
+    }
 }

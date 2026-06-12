@@ -46,7 +46,8 @@ class Bibit extends Model
      * Menjamin tipe data stok dan harga selalu angka
      */
     protected $casts = [
-        'stok' => 'integer',
+        'stok' => 'float',
+        'stok_awal' => 'float',
         'harga_subsidi' => 'integer',
     ];
 
@@ -73,5 +74,10 @@ class Bibit extends Model
         return $this->belongsToMany(Petani::class, 'bibit_petani')
                     ->withPivot('kuota_maksimal')
                     ->withTimestamps();
+    }
+
+    public function pengajuans()
+    {
+        return $this->hasMany(Pengajuan::class, 'bibit_id');
     }
 }

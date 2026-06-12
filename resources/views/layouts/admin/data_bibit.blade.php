@@ -16,8 +16,7 @@
                     <i class="fas fa-check-circle text-xl"></i>
                 </div>
                 <div>
-                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Aktif</p>
-                    <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', true)->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
+                    <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', true)->sum('stok'), 1, ',', '.') }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
                 </div>
             </div>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -25,8 +24,7 @@
                     <i class="fas fa-archive text-xl"></i>
                 </div>
                 <div>
-                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stok Sisa (Tutup)</p>
-                    <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', false)->whereNotNull('tanggal_buka')->sum('stok')) }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
+                    <p class="text-xl font-bold text-gray-800 leading-none">{{ number_format($bibits->where('is_buka', false)->whereNotNull('tanggal_buka')->sum('stok'), 1, ',', '.') }} <span class="text-xs text-gray-400 font-medium">Kg</span></p>
                 </div>
             </div>
             <div class="md:col-span-2"></div>
@@ -102,7 +100,7 @@
                         <td class="p-4 text-gray-600 font-medium">{{ $b->jenis ?? '-' }}</td>
                         <td class="p-4">
                             <span class="px-2 py-1 rounded-full font-bold {{ $b->stok < 10 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600' }}">
-                                {{ $b->stok }} Kg
+                                {{ number_format($b->stok, 1, ',', '.') }} Kg
                             </span>
                         </td>
                         <td class="p-4 font-bold text-gray-800">Rp {{ number_format($b->harga_subsidi, 0, ',', '.') }}</td>
@@ -242,7 +240,7 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Volume Subsidi (Kg)</label>
-                    <input type="text" name="stok" id="f_stok" oninput="sanitizeNumber(this)" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="0" required>
+                    <input type="number" step="0.1" name="stok" id="f_stok" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="0" required>
                 </div>
                 <div>
                     <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Nilai Tebus / Kg</label>
@@ -366,7 +364,7 @@
 
     document.getElementById('bibitForm').addEventListener('submit', function(e) {
         const hargaReal = document.getElementById('f_harga').value.replace(/[^0-9]/g, '');
-        const stokReal = document.getElementById('f_stok').value.replace(/[^0-9]/g, '');
+        const stokReal = document.getElementById('f_stok').value;
 
         if (!hargaReal || parseInt(hargaReal) <= 0) {
             alert('Perhatian: Harga Bibit per Kg tidak boleh 0 atau kosong!');
@@ -374,7 +372,7 @@
             return;
         }
 
-        if (!stokReal || parseInt(stokReal) < 0) {
+        if (!stokReal || parseFloat(stokReal) < 0) {
             alert('Perhatian: Stok tidak boleh kosong atau negatif!');
             e.preventDefault();
             return;
