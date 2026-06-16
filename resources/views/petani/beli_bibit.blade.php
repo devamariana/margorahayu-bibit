@@ -54,8 +54,8 @@
         </div>
     </div>
 
-    {{-- STEP 2: PILIH BIBIT (VERSI LEBIH PADAT) --}}
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-orange-100">
+    {{-- STEP 2: PILIH BIBIT (Dihilangkan jika sudah pilih dari Katalog) --}}
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-orange-100 {{ request('bibit_id') ? 'hidden' : '' }}">
         <div class="flex items-center gap-4 mb-6">
             <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
                 <i class="fas fa-seedling text-xl"></i>
@@ -172,7 +172,7 @@
                         <div class="max-w-xs">
                             <label class="block text-sm font-bold text-gray-700 mb-2">Jumlah Dijemput/Diambil (Kg)</label>
                             <div class="relative">
-                                <input type="number" step="0.1" name="jumlah_beli" id="input-jumlah-beli" value="0" min="0.1" class="w-full p-4 bg-white border-2 border-green-600 rounded-xl font-black text-[#2D6A4F] text-xl focus:ring-4 focus:ring-green-100 outline-none transition" oninput="hitungTotalManual()">
+                                <input type="text" name="jumlah_beli" id="input-jumlah-beli" value="0" class="w-full p-4 bg-white border-2 border-green-600 rounded-xl font-black text-[#2D6A4F] text-xl focus:ring-4 focus:ring-green-100 outline-none transition" oninput="this.value = this.value.replace(/[^0-9,.]/g, '').replace(/(\..*?)\..*/g, '$1').replace(/(,.*?)\,,*/g, '$1'); hitungTotalManual()" inputmode="decimal">
                                 <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                                     <span class="font-bold text-gray-400 uppercase text-xs italic">Kg</span>
                                 </div>
@@ -392,7 +392,7 @@
     }
 
     function hitungTotalManual() {
-        let inputVal = document.getElementById('input-jumlah-beli').value;
+        let inputVal = document.getElementById('input-jumlah-beli').value.replace(',', '.');
         let qty = parseFloat(inputVal) || 0;
         const btnBayar = document.getElementById('btn-bayar');
 
@@ -447,14 +447,21 @@
         if (bibitId) {
             const targetCard = document.querySelector(`.bibit-card[data-id="${bibitId}"]`);
             if (targetCard) {
-                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Auto-pilih jika lahan sudah ada atau hanya satu
                 const selectLahan = document.getElementById('pilih-lahan');
-                if (selectLahan.options.length === 2) { 
+                if (selectLahan.value) {
+                    targetCard.click();
+                } else if (selectLahan.options.length === 2) { 
                     selectLahan.selectedIndex = 1;
                     targetCard.click();
                 } else {
-                    targetCard.classList.add('ring-4', 'ring-orange-400');
-                    setTimeout(() => targetCard.classList.remove('ring-4', 'ring-orange-400'), 3000);
+                    // Jika lahan lebih dari satu dan belum dipilih, beri instruksi
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Pilih Lahan',
+                        text: 'Silakan pilih lahan yang akan ditanami terlebih dahulu untuk menghitung jatah bibit Anda.',
+                        confirmButtonColor: '#2D6A4F'
+                    });
                 }
             }
         }

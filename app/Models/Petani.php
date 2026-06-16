@@ -23,7 +23,7 @@ class Petani extends Model
         'foto_ktp',
         'foto_kk',
         'status',
-        'jatah_tambahan', // WAJIB ADA agar fitur pindah jatah Admin tersimpan
+        'saldo',         // Saldo refund dari pengembalian bibit
     ];
 
     // Relasi balik ke User (Satu profil ini punya satu akun login)

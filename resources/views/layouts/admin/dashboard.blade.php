@@ -30,11 +30,40 @@
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
             <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
-                <i class="fas fa-user-clock text-2xl"></i>
+                <i class="fas fa-user-clock text-2xl text-orange-500"></i>
             </div>
-            <div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Antrean Verifikasi</p>
-                <h3 class="text-2xl font-black text-orange-600">{{ $totalPending }}</h3>
+            <div class="flex-1">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-tight">Total Antrean Verifikasi</p>
+                <div class="flex items-baseline gap-2">
+                    <h3 class="text-2xl font-black text-orange-600">{{ $totalAntrean }}</h3>
+                    <span class="text-[10px] font-bold text-gray-400">Total Berkas</span>
+                </div>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                    @if($countPendingPetani > 0)
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                            <span class="text-[9px] font-bold text-gray-500">{{ $countPendingPetani }} Petani</span>
+                        </div>
+                    @endif
+                    @if($countPendingLahan > 0)
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                            <span class="text-[9px] font-bold text-gray-500">{{ $countPendingLahan }} Lahan</span>
+                        </div>
+                    @endif
+                    @if($countPendingPengajuan > 0)
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                            <span class="text-[9px] font-bold text-gray-500">{{ $countPendingPengajuan }} Pengajuan</span>
+                        </div>
+                    @endif
+                    @if($countPendingTransaksi > 0)
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
+                            <span class="text-[9px] font-bold text-gray-500">{{ $countPendingTransaksi }} Transaksi</span>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>

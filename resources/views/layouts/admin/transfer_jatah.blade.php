@@ -51,6 +51,7 @@
                     <div class="relative">
                         <select name="penerima_id" class="appearance-none block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm pr-10" required>
                             <option value="">-- Pilih Penerima --</option>
+                            <option value="admin" class="font-bold text-[#2D6A4F]">Kembalikan ke Admin / Gudang</option>
                             @foreach($petanis as $p)
                                 <option value="{{ $p->id }}">{{ $p->nama_lengkap }}</option>
                             @endforeach
@@ -160,7 +161,7 @@
                         <td class="p-2">
                             <span class="font-bold">{{ $r->pengirim->nama_lengkap }}</span>
                         </td>
-                        <td class="p-2">{{ $r->penerima->nama_lengkap }}</td>
+                        <td class="p-2">{{ $r->penerima->nama_lengkap ?? 'Admin (Gudang)' }}</td>
                         <td class="p-2 text-blue-600 font-bold text-right">{{ $r->jumlah_kg }} Kg</td>
                     </tr>
                     @endforeach

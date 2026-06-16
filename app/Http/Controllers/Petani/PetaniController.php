@@ -22,9 +22,10 @@ class PetaniController extends Controller
     public function dashboard()
     {
         // 1. Cek Periode Aktif & Bibit yang SUDAH DIBUKA oleh Admin
-        // FITUR OTOMATIS: Jika distribusi sudah lewat 7 hari, otomatis tutup di DB agar sinkron
+// FITUR OTOMATIS: Jika distribusi sudah lewat 15 hari, otomatis tutup di DB agar sinkron (hanya jika stok habis)
         Bibit::where('is_buka', true)
-             ->where('tanggal_buka', '<=', now()->subDays(7))
+             ->where('tanggal_buka', '<=', now()->subDays(15))
+             ->where('stok', '<=', 0)
              ->update(['is_buka' => false]);
 
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
@@ -71,7 +72,7 @@ class PetaniController extends Controller
                 }
 
                 // VALIDASI JATAH: Menggunakan Pengajuan yang disetujui (Revisi Dosen)
-                $totalLuasGlobal = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
+                $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
                     ->where('pengajuans.status', 'disetujui')
                     ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
                     ->sum('lahans.luas_lahan');
@@ -79,14 +80,14 @@ class PetaniController extends Controller
                 $hakProposional = 0;
                 if ($totalLuasGlobal > 0) {
                     // Cari total luas lahan yang diajukan petani ini untuk bibit ini dan disetujui
-                    $luasLahanPengajuan = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
-                        ->where('petani_id', $petani->id)
+                    $luasLahanPengajuan = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
+                        ->where('pengajuans.petani_id', $petani->id)
                         ->where('pengajuans.status', 'disetujui')
                         ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
                         ->sum('lahans.luas_lahan');
                     
                     if ($luasLahanPengajuan > 0) {
-                        $hakProposional = ($luasLahanPengajuan / $totalLuasGlobal) * ($bibit->stok_awal ?? $bibit->stok);
+                        $hakProposional = ($luasLahanPengajuan / $totalLuasGlobal) * $bibit->stok_awal_real;
                     }
                 }
 
@@ -157,7 +158,7 @@ class PetaniController extends Controller
         
         $lahans = Lahan::with(['transaksi' => function($q) {
             $q->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak'])->with('bibit');
-        }, 'pengajuans.bibit'])->where('petani_id', $petani->id)->get();
+        }, 'pengajuans.bibit', 'pengajuans.periode'])->where('petani_id', $petani->id)->get();
         $totalLuas = $lahans->sum('luas_lahan');
         $jumlahLahan = $lahans->count();
 
@@ -175,6 +176,15 @@ class PetaniController extends Controller
                 ->get();
         }
 
+        // Siapkan year filter agar tetap tersedia meski belum ada lahan
+        $tahunTersedia = Transaksi::where('petani_id', $petani->id)
+            ->whereIn('status_pembayaran', ['sukses', 'lunas'])
+            ->selectRaw('YEAR(created_at) as tahun')
+            ->distinct()
+            ->orderBy('tahun', 'desc')
+            ->pluck('tahun');
+        $selectedTahun = $request->tahun ?? date('Y');
+
         // Hanya hitung jatah untuk bibit yang dibuka Admin DAN sesuai musim aktif saat ini
         $bibitsTerbuka = Bibit::where('is_buka', true)
             ->where('stok', '>', 0)
@@ -183,27 +193,27 @@ class PetaniController extends Controller
 
         // Jika belum ada lahan terverifikasi, estimasi jatah harus 0
         if ($jumlahLahan <= 0) {
-            return view('petani.lahan', compact('petani', 'lahans', 'totalLuas', 'jumlahLahan', 'estimasiJatah', 'bibitsTersedia', 'periodeAktif'));
+            return view('petani.lahan', compact('petani', 'lahans', 'totalLuas', 'jumlahLahan', 'estimasiJatah', 'bibitsTersedia', 'periodeAktif', 'tahunTersedia', 'selectedTahun'));
         }
 
         $luasPetani = $lahans->sum('luas_lahan');
 
         foreach ($bibitsTerbuka as $bibit) {
-            $totalLuasGlobal = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
+            $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
                     ->where('pengajuans.status', 'disetujui')
                     ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
                     ->sum('lahans.luas_lahan');
             
             $hakTotal = 0;
             if ($totalLuasGlobal > 0) {
-                $luasLahanPengajuan = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
-                        ->where('petani_id', $petani->id)
+                $luasLahanPengajuan = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
+                        ->where('pengajuans.petani_id', $petani->id)
                         ->where('pengajuans.status', 'disetujui')
                         ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
                         ->sum('lahans.luas_lahan');
                 
                 if ($luasLahanPengajuan > 0) {
-                    $hakTotal = ($luasLahanPengajuan / $totalLuasGlobal) * ($bibit->stok_awal ?? $bibit->stok);
+                    $hakTotal = ($luasLahanPengajuan / $totalLuasGlobal) * $bibit->stok_awal_real;
                 }
             }
 
@@ -218,63 +228,73 @@ class PetaniController extends Controller
             $tambahanTransfer = PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg')
                                - PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
 
-            $estimasiJatah += max(0, round(($hakTotal - $sudahDibeli) + $tambahanTransfer, 1));
+            $estimasiJatah += min($bibit->stok, max(0, round(($hakTotal - $sudahDibeli) + $tambahanTransfer, 1)));
         }
 
-        $bibitPilihan = Bibit::select('id', 'nama_bibit')->get();
+        // $bibitPilihan = Bibit::select('id', 'nama_bibit')->get(); // Di-nonaktifkan karena sudah menggunakan bibitsTersedia yang lebih spesifik
         
-        // Cari tahun-tahun transaksi yang tersedia untuk petani ini
-        $tahunTersedia = Transaksi::where('petani_id', $petani->id)
-            ->whereIn('status_pembayaran', ['sukses', 'lunas'])
-            ->selectRaw('YEAR(created_at) as tahun')
-            ->distinct()
-            ->orderBy('tahun', 'desc')
-            ->pluck('tahun');
-
-        $selectedTahun = $request->tahun ?? date('Y');
-
-        return view('petani.lahan', compact('petani', 'lahans', 'totalLuas', 'jumlahLahan', 'estimasiJatah', 'bibitPilihan', 'tahunTersedia', 'selectedTahun', 'bibitsTersedia', 'periodeAktif'));
+        return view('petani.lahan', compact('petani', 'lahans', 'totalLuas', 'jumlahLahan', 'estimasiJatah', 'tahunTersedia', 'selectedTahun', 'bibitsTersedia', 'periodeAktif'));
     }
 
     /**
-     * Menyimpan data lahan baru
+     * Menyimpan data lahan baru sekaligus mengajukan bibit (Integrated)
      */
     public function storeLahan(Request $request)
     {
         $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
-        // VALIDASI AKUN TERVERIFIKASI
+        // 1. VALIDASI AKUN TERVERIFIKASI
         if (!$petani || $petani->status !== 'disetujui') {
             return back()->with('error', 'Gagal menambahkan lahan. Akun Anda belum terverifikasi oleh Admin!');
         }
 
+        // 2. CEK PERIODE AKTIF TERLEBIH DAHULU UNTUK VALIDASI
+        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
+        if (!$periodeAktif) {
+            return back()->with('error', 'Gagal! Tidak ada periode distribusi yang aktif saat ini.');
+        }
+
+        // 3. VALIDASI INPUT
         $request->validate([
             'nama_blok' => 'required|string|max:255',
             'luas_lahan' => 'required|numeric|min:1',
-            'rencana_bibit' => 'required|string',
+            'bibit_id' => 'required|exists:bibits,id,periode_id,' . $periodeAktif->id,
         ]);
 
+        $bibit = Bibit::find($request->bibit_id);
+
+        // 4. SIMPAN DATA LAHAN
         $lahan = Lahan::create([
             'petani_id' => $petani->id,
             'nama_blok' => $request->nama_blok,
             'luas_lahan' => $request->luas_lahan,
             'jenis_tanah' => $request->jenis_tanah ?? '-',
-            'rencana_bibit' => $request->rencana_bibit,
+            'rencana_bibit' => $bibit->nama_bibit, // Simpan nama varietas sebagai backup
+            'status' => 'pending',
         ]);
 
-        // Beritahu admin
+        // 5. OTOMATIS BUAT PENGAJUAN BIBIT
+        \App\Models\Pengajuan::create([
+            'petani_id' => $petani->id,
+            'lahan_id' => $lahan->id,
+            'bibit_id' => $request->bibit_id,
+            'periode_id' => $periodeAktif->id,
+            'status' => 'menunggu',
+        ]);
+
+        // 6. BERITAHU ADMIN
         $admins = \App\Models\User::where('role', 'admin')->get();
         foreach ($admins as $admin) {
             $admin->notify(new \App\Notifications\SistemNotifikasi(
-                'Permintaan Data Lahan Baru', 
-                "Petani {$petani->nama_lengkap} telah menambahkan lahan di {$lahan->nama_blok}. Mohon segera diverifikasi supaya mereka bisa belanja bibit.", 
+                'Permintaan Lahan & Bibit Baru', 
+                "Petani {$petani->nama_lengkap} telah menambahkan lahan {$lahan->nama_blok} sekaligus mengajukan bibit {$bibit->nama_bibit}. Mohon segera diverifikasi.", 
                 'info',
                 url('/admin/data-lahan'),
                 $lahan->id
             ));
         }
 
-        return back()->with('success', 'Lahan baru berhasil ditambahkan dan menunggu verifikasi admin!');
+        return back()->with('success', 'Data lahan & pengajuan bibit berhasil ditambahkan! Silakan tunggu verifikasi oleh Admin.');
     }
 
     /**
@@ -310,7 +330,37 @@ class PetaniController extends Controller
                            ->where('stok', '>', 0)
                            ->whereNotNull('kategori_musim')
                            ->where('kategori_musim', '!=', '')
+                           ->latest()
                            ->get();
+
+        // HITUNG JATAH PETANI (SAMA SEPERTI DI beliBibit) AGAR KONSISTEN
+        foreach ($semuaBibit as $b) {
+            $b->sudah_dibeli = Transaksi::where('petani_id', $petani->id)
+                ->where('bibit_id', $b->id)
+                ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
+                ->sum('jumlah_beli');
+
+            $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $b->id)
+                ->where('pengajuans.status', 'disetujui')
+                ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
+                ->sum('lahans.luas_lahan');
+                
+            $hakTotal = 0;
+            if ($totalLuasGlobal > 0) {
+                $luasLahanPengajuan = \App\Models\Pengajuan::where('pengajuans.bibit_id', $b->id)
+                    ->where('pengajuans.petani_id', $petani->id)
+                    ->where('pengajuans.status', 'disetujui')
+                    ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
+                    ->sum('lahans.luas_lahan');
+                
+                if ($luasLahanPengajuan > 0) {
+                    $hakTotal = ($luasLahanPengajuan / $totalLuasGlobal) * $b->stok_awal_real;
+                }
+            }
+
+            // Kurangi stok yang sudah dibeli sukses/pending/menunggu_pembayaran
+            $b->sisa_jatah_global = min($b->stok, max(0, round($hakTotal - $b->sudah_dibeli, 1)));
+        }
 
         return view('petani.informasi_bibit', compact('semuaBibit', 'petani', 'currentMusimAktif', 'periodeAktif'));
     }
@@ -318,13 +368,18 @@ class PetaniController extends Controller
     /**
      * Menampilkan halaman Informasi & Pembelian Bibit
      */
-    public function beliBibit()
+    public function beliBibit(Request $request)
     {
         $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
 
         // 1. Cek Status Verifikasi
         if ($petani->status !== 'disetujui') {
             return redirect()->route('petani.dashboard')->with('error', 'Akun Anda belum diverifikasi oleh Admin. Anda belum bisa melakukan pembelian bibit.');
+        }
+
+        // 2. WAJIB: Harus pilih dari katalog Informasi Bibit (Revisi User)
+        if (!$request->bibit_id) {
+            return redirect()->route('petani.informasi_bibit')->with('info', 'Silakan pilih varietas bibit dari katalog terlebih dahulu untuk melakukan pemesanan.');
         }
 
         // 2. Cek apakah ada Periode yang AKTIF
@@ -336,9 +391,10 @@ class PetaniController extends Controller
         // PERBAIKAN: Ambil status musim langsung dari Payung Utama Data Periode yang aktif
         $currentMusimAktif = $periodeAktif->musim ?? 'kemarau';
 
-        // Sync status masa aktif bibit (belum lewat 7 hari)
+        // Sync status masa aktif bibit (belum lewat 15 hari, hanya tutup jika stok habis)
         Bibit::where('is_buka', true)
-             ->where('tanggal_buka', '<=', now()->subDays(7))
+             ->where('tanggal_buka', '<=', now()->subDays(15))
+             ->where('stok', '<=', 0)
              ->update(['is_buka' => false]);
 
         // Ambil HANYA bibit yang sudah DIBUKA distribusinya di periode AKTIF
@@ -347,6 +403,7 @@ class PetaniController extends Controller
                            ->where('stok', '>', 0)
                            ->whereNotNull('kategori_musim')
                            ->where('kategori_musim', '!=', '')
+                           ->latest()
                            ->get();
 
         if ($semuaBibit->isEmpty()) {
@@ -368,26 +425,26 @@ class PetaniController extends Controller
                 ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
                 ->sum('jumlah_beli');
 
-            $totalLuasGlobal = \App\Models\Pengajuan::where('bibit_id', $b->id)
+            $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $b->id)
                 ->where('pengajuans.status', 'disetujui')
                 ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
                 ->sum('lahans.luas_lahan');
                 
             $hakTotal = 0;
             if ($totalLuasGlobal > 0) {
-                $luasLahanPengajuan = \App\Models\Pengajuan::where('bibit_id', $b->id)
-                    ->where('petani_id', $petani->id)
+                $luasLahanPengajuan = \App\Models\Pengajuan::where('pengajuans.bibit_id', $b->id)
+                    ->where('pengajuans.petani_id', $petani->id)
                     ->where('pengajuans.status', 'disetujui')
                     ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
                     ->sum('lahans.luas_lahan');
                 
                 if ($luasLahanPengajuan > 0) {
-                    $hakTotal = ($luasLahanPengajuan / $totalLuasGlobal) * ($b->stok_awal ?? $b->stok);
+                    $hakTotal = ($luasLahanPengajuan / $totalLuasGlobal) * $b->stok_awal_real;
                 }
             }
 
             // Kurangi stok yang sudah dibeli sukses/pending/menunggu_pembayaran
-            $b->sisa_jatah_global = max(0, round($hakTotal - $b->sudah_dibeli, 1));
+            $b->sisa_jatah_global = min($b->stok, max(0, round($hakTotal - $b->sudah_dibeli, 1)));
         }
 
         // Bangun peta pembelian per lahan untuk tiap bibit
@@ -416,11 +473,13 @@ class PetaniController extends Controller
         }
 
         Bibit::where('is_buka', true)
-             ->where('tanggal_buka', '<=', now()->subDays(7))
+             ->where('tanggal_buka', '<=', now()->subDays(15))
+             ->where('stok', '<=', 0)
              ->update(['is_buka' => false]);
 
+        // CATATAN: Tidak menggunakan filter stok > 0 di sini karena saat pengembalian jatah ke admin,
+        // stok justru akan BERTAMBAH. Petani tetap harus bisa memilih bibit meski stok admin sementara 0.
         $bibitsTerbuka = Bibit::where('is_buka', true)
-            ->where('stok', '>', 0)
             ->whereNotNull('kategori_musim')
             ->where('kategori_musim', '!=', '')
             ->get();
@@ -430,37 +489,52 @@ class PetaniController extends Controller
         $selectedBibit = null;
         $sisaJatah = 0;
 
-        // Hanya isi jatah jika LAHAN dan BIBIT dipilih secara manual (sinyal: select=manual)
-        if ($request->query('select') == 'manual' && $request->query('bibit_id') && $request->query('lahan_id')) {
+        // Hitung saldo jika LAHAN dan BIBIT keduanya dipilih
+        if ($request->query('lahan_id') && $request->query('bibit_id')) {
             $selectedBibit = $bibitsTerbuka->firstWhere('id', $request->query('bibit_id'));
         }
 
         if ($selectedBibit) {
-            $lahanId = $request->query('lahan_id');
-            $lahan = Lahan::find($lahanId);
-            
+            $lahan = Lahan::find($request->query('lahan_id'));
+
             if ($lahan) {
-                // 1. Hitung Hak Proposional Khusus Lahan Ini menggunakan Snapshot atau Luas Global
-                $totalLuasGlobal = $selectedBibit->total_luas_snapshot > 0 ? $selectedBibit->total_luas_snapshot : Lahan::where('status', 'disetujui')->sum('luas_lahan');
-                
+                // === SAMA PERSIS DENGAN cekJatah (yang dipakai di halaman beli bibit) ===
+
+                // 1. Total luas global dari Pengajuan yang disetujui untuk bibit ini
+                $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $selectedBibit->id)
+                    ->where('pengajuans.status', 'disetujui')
+                    ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
+                    ->sum('lahans.luas_lahan');
+
+                // 2. Hak proporsional lahan ini (hanya jika ada pengajuan disetujui)
                 $hakLahanIni = 0;
                 if ($totalLuasGlobal > 0) {
-                    $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * ($selectedBibit->stok_awal ?? $selectedBibit->stok);
+                    $pengajuan = \App\Models\Pengajuan::where('bibit_id', $selectedBibit->id)
+                        ->where('lahan_id', $lahan->id)
+                        ->where('status', 'disetujui')
+                        ->first();
+
+                    if ($pengajuan) {
+                        $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * $selectedBibit->stok_awal_real;
+                    }
                 }
 
-                // 2. Hitung Pengambilan yang sudah dilakukan di lahan ini
+                // 3. Yang sudah dibeli di lahan ini
                 $sudahDibeli = Transaksi::where('petani_id', $petani->id)
                     ->where('bibit_id', $selectedBibit->id)
                     ->where('lahan_id', $lahan->id)
                     ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
                     ->sum('jumlah_beli');
 
-                // 3. Tambahan Hibah
+                // 4. Tambahan dari Transfer Jatah (Penerima - Pengirim)
+                // penerima_id = null artinya dikembalikan ke admin (tidak dihitung sebagai penerimaan petani ini)
                 $tambahanTransfer = PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $selectedBibit->id)->sum('jumlah_kg')
                                    - PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $selectedBibit->id)->sum('jumlah_kg');
 
-                // 4. Jatah Akhir = (Hak Lahan - Terpakai) + Hibah
-                $sisaJatah = round(max(0, ($hakLahanIni - $sudahDibeli) + $tambahanTransfer), 1);
+                // 5. Sisa Jatah petani untuk lahan ini
+                // PENTING: TIDAK menggunakan min($selectedBibit->stok) karena saat mengembalikan ke admin,
+                // stok admin justru akan BERTAMBAH — jadi saldo petani tidak dibatasi stok admin.
+                $sisaJatah = max(0, round(($hakLahanIni - $sudahDibeli) + $tambahanTransfer, 1));
             }
         }
 
@@ -481,6 +555,7 @@ class PetaniController extends Controller
 
         $request->validate([
             'bibit_id' => 'required|exists:bibits,id',
+            'lahan_id' => 'required|exists:lahans,id',
             'jumlah_kg' => 'required|numeric|min:0.1',
             'alasan' => 'nullable|string|max:255',
         ]);
@@ -488,37 +563,69 @@ class PetaniController extends Controller
         $bibit = Bibit::findOrFail($request->bibit_id);
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
 
-        // VALIDASI MUSIM: Tidak boleh mengembalikan jatah jika bukan musimnya
+        // VALIDASI MUSIM
         if (!$periodeAktif || $bibit->kategori_musim !== $periodeAktif->musim) {
             return back()->with('error', "Gagal! Pengembalian jatah bibit " . $bibit->nama_bibit . " hanya bisa dilakukan pada Musim " . strtoupper($bibit->kategori_musim) . ".");
         }
 
-        $totalLuasLahanGlobal = $bibit->total_luas_snapshot > 0 ? $bibit->total_luas_snapshot : Lahan::where('status', 'disetujui')->sum('luas_lahan');
-        $luasLahanPetani = Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->sum('luas_lahan');
-
-        $hakProposional = 0;
-        if ($totalLuasLahanGlobal > 0) {
-            $hakProposional = ($luasLahanPetani / $totalLuasLahanGlobal) * ($bibit->stok_awal ?? $bibit->stok);
+        // Hitung saldo per-lahan (SAMA PERSIS dengan cekJatah / beli bibit)
+        $lahan = Lahan::find($request->lahan_id);
+        if (!$lahan || $lahan->petani_id !== $petani->id) {
+            return back()->with('error', 'Lahan tidak valid atau bukan milik Anda.');
         }
 
-        $tambahanTransfer = PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg')
-                           - PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+        // 1. Total luas global dari Pengajuan yang disetujui untuk bibit ini
+        $totalLuasLahanGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
+            ->where('pengajuans.status', 'disetujui')
+            ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
+            ->sum('lahans.luas_lahan');
 
-        $hakTotal = round($hakProposional + $tambahanTransfer, 1);
+        // 2. Hak proporsional lahan ini
+        $hakLahanIni = 0;
+        if ($totalLuasLahanGlobal > 0) {
+            $pengajuan = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
+                ->where('lahan_id', $lahan->id)
+                ->where('status', 'disetujui')
+                ->first();
 
+            if ($pengajuan) {
+                $hakLahanIni = ($lahan->luas_lahan / $totalLuasLahanGlobal) * $bibit->stok_awal_real;
+            }
+        }
+
+        // 3. Yang sudah dibeli di lahan ini
         $sudahDibeli = Transaksi::where('petani_id', $petani->id)
             ->where('bibit_id', $bibit->id)
+            ->where('lahan_id', $lahan->id)
             ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
             ->sum('jumlah_beli');
 
-        $sisaJatah = max(0, $hakTotal - $sudahDibeli);
+        // 4. Tambahan dari Transfer Jatah
+        // Catatan: penerima_id = null artinya dikembalikan ke admin (tidak dihitung sebagai penerimaan petani ini)
+        $tambahanTransfer = PindahJatah::where('penerima_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg')
+                           - PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+
+        // 5. Sisa Jatah petani untuk lahan ini
+        // PENTING: TIDAK menggunakan min($bibit->stok) karena saat mengembalikan ke admin,
+        // stok admin justru akan BERTAMBAH — jadi tidak perlu dibatasi stok saat ini.
+        $sisaJatah = max(0, round(($hakLahanIni - $sudahDibeli) + $tambahanTransfer, 1));
 
         if ($request->jumlah_kg > $sisaJatah) {
             return back()->with('error', "Jumlah pengembalian ({$request->jumlah_kg} Kg) melebihi sisa jatah Anda ({$sisaJatah} Kg).");
         }
 
-        $bibit->stok += $request->jumlah_kg;
-        $bibit->save();
+        // Update stok bibit di database secara atomic (hanya kolom stok yang berubah)
+        // Ini memastikan stok admin bertambah dengan benar setelah petani mengembalikan jatah
+        Bibit::where('id', $bibit->id)->increment('stok', $request->jumlah_kg);
+
+        // Jika sebelumnya stok = 0 (status habis), update status menjadi tersedia kembali
+        if ($bibit->stok <= 0) {
+            Bibit::where('id', $bibit->id)->update(['status' => 'tersedia']);
+        }
+
+        // REFUND: Hitung uang yang dikembalikan ke petani
+        $uangDikembalikan = $bibit->harga_subsidi * $request->jumlah_kg;
+        Petani::where('id', $petani->id)->increment('saldo', $uangDikembalikan);
 
         PindahJatah::create([
             'bibit_id' => $bibit->id,
@@ -552,6 +659,13 @@ class PetaniController extends Controller
     public function prosesBeliBibit(Request $request)
     {
         $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
+
+        // Harmonize decimal separator (convert comma to dot if exists)
+        if ($request->has('jumlah_beli')) {
+            $request->merge([
+                'jumlah_beli' => str_replace(',', '.', $request->jumlah_beli)
+            ]);
+        }
 
         // REVISI SIDANG: Pastikan periode masih aktif saat memproses pembelian
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
@@ -598,13 +712,24 @@ class PetaniController extends Controller
         
         $bibit = Bibit::findOrFail($request->bibit_id);
 
+        // VALIDASI DUPLIKAT: 1 petani hanya bisa beli 1 jenis bibit per lahan (tidak bisa beli 2x untuk lahan yang sama)
+        $existingPurchase = Transaksi::where('petani_id', $petani->id)
+            ->where('bibit_id', $bibit->id)
+            ->where('lahan_id', $lahan->id)
+            ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
+            ->exists();
+
+        if ($existingPurchase) {
+            return back()->with('error', 'Anda sudah membeli bibit ' . $bibit->nama_bibit . ' untuk lahan ini. Hanya boleh 1 pembelian per lahan per jenis bibit. Silakan gunakan lahan yang berbeda atau kembalikan bibit terlebih dahulu.');
+        }
+
         // Validasi musim: bibit yang dibeli harus sesuai dengan Musim Aktif di Periode saat ini
         if ($bibit->kategori_musim !== $periodeAktif->musim) {
             return back()->with('error', 'Transaksi ditolak. Bibit ' . $bibit->nama_bibit . ' hanya dapat dibeli pada Musim ' . strtoupper($bibit->kategori_musim) . '.');
         }
 
         // Validasi hanya bibit yang memang dibuka
-        if (!$bibit->is_buka || $bibit->tanggal_buka <= now()->subDays(7)) {
+        if (!$bibit->is_buka || ($bibit->tanggal_buka <= now()->subDays(15) && $bibit->stok <= 0)) {
             return back()->with('error', 'Transaksi ditolak. Distribusi bibit ini sudah ditutup.');
         }
 
@@ -613,7 +738,7 @@ class PetaniController extends Controller
         }
 
         // VALIDASI JATAH: Menggunakan Pengajuan yang disetujui (Revisi Dosen)
-        $totalLuasGlobal = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
+        $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
             ->where('pengajuans.status', 'disetujui')
             ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
             ->sum('lahans.luas_lahan');
@@ -627,7 +752,7 @@ class PetaniController extends Controller
                 ->first();
             
             if ($pengajuanLahan) {
-                $hakProposional = ($lahan->luas_lahan / $totalLuasGlobal) * ($bibit->stok_awal ?? $bibit->stok);
+                $hakProposional = ($lahan->luas_lahan / $totalLuasGlobal) * $bibit->stok_awal_real;
             } else {
                 return back()->with('error', 'Gagal! Lahan ini tidak memiliki pengajuan yang disetujui untuk bibit ' . $bibit->nama_bibit . '. Silakan lakukan pengajuan terlebih dahulu.');
             }
@@ -648,7 +773,7 @@ class PetaniController extends Controller
                 ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak'])
                 ->sum('jumlah_beli');
         
-        $sisaJatah = max(0, $hakTotal - $sudahDibeli);
+        $sisaJatah = min($bibit->stok, max(0, $hakTotal - $sudahDibeli));
 
         if ($request->jumlah_beli > $sisaJatah) {
             return back()->with('error', "Transaksi Gagal. Jumlah yang Anda ambil ({$request->jumlah_beli} Kg) melebihi sisa hak jatah Anda ({$sisaJatah} Kg).");
@@ -761,6 +886,19 @@ class PetaniController extends Controller
             $transaksi->status_pembayaran = 'menunggu_persetujuan'; // Status naik ke tahap verifikasi Admin
             $transaksi->save();
 
+            // Beritahu admin
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            $petani = Petani::where('user_id', Auth::guard('petani')->id() ?? Auth::id())->first();
+            foreach ($admins as $admin) {
+                $admin->notify(new \App\Notifications\SistemNotifikasi(
+                    'Update Bukti Pembayaran', 
+                    "Petani {$petani->nama_lengkap} telah mengunggah bukti transfer untuk pesanan {$transaksi->order_id}. Mohon segera diverifikasi.", 
+                    'info',
+                    url('/admin/riwayat-transaksi'),
+                    $transaksi->id
+                ));
+            }
+
             return back()->with('success', 'Bukti pembayaran berhasil diunggah. Silakan tunggu verifikasi dari Admin.');
         }
 
@@ -823,18 +961,22 @@ class PetaniController extends Controller
                     'order_id' => $transaksi->order_id,
                     'gross_amount' => $transaksi->total_harga,
                 ],
+                'enabled_payments' => [
+                    'credit_card', 'permata_va', 'bca_va', 'bni_va', 'bri_va', 'other_va',
+                    'gopay', 'shopeepay', 'indomaret', 'alfamart', 'bank_transfer'
+                ],
                 'customer_details' => [
                     'first_name' => collect(explode(' ', $petani->nama_lengkap))->first(),
                     'last_name' => collect(explode(' ', $petani->nama_lengkap))->slice(1)->implode(' '),
                     'phone' => str_replace('+', '', $petani->no_hp),
-                    'email' => 'petani_' . $petani->id . '@example.com',
+                    'email' => $petani->user->email ?? 'petani_' . $petani->id . '@example.com',
                 ],
                 'item_details' => [
                     [
                         'id' => $transaksi->bibit->id,
                         'price' => $transaksi->bibit->harga_subsidi,
                         'quantity' => $transaksi->jumlah_beli,
-                        'name' => substr($transaksi->bibit->nama_bibit, 0, 50) // Nama barang dibatasi agar tidak terlalu panjang
+                        'name' => substr($transaksi->bibit->nama_bibit, 0, 50)
                     ]
                 ]
             ];
@@ -1275,7 +1417,7 @@ class PetaniController extends Controller
         if (!$petani || !$bibit || !$lahan) return response()->json(['sisa' => 0, 'status' => 'error', 'message' => 'Lahan atau Bibit tidak valid.']);
 
         // 1. Hitung total luas global berdasarkan Pengajuan yang disetujui (Revisi Dosen)
-        $totalLuasGlobal = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
+        $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
             ->where('pengajuans.status', 'disetujui')
             ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
             ->sum('lahans.luas_lahan');
@@ -1290,7 +1432,7 @@ class PetaniController extends Controller
                 ->first();
             
             if ($pengajuan) {
-                $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * ($bibit->stok_awal ?? $bibit->stok);
+                $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * $bibit->stok_awal_real;
             } else {
                 return response()->json([
                     'sisa' => 0, 
@@ -1312,7 +1454,7 @@ class PetaniController extends Controller
                            - \App\Models\PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
 
         // 5. Sisa Jatah yang Tersedia
-        $sisaJatah = max(0, round(($hakLahanIni - $sudahDibeli) + $tambahanTransfer, 1));
+        $sisaJatah = min($bibit->stok, max(0, round(($hakLahanIni - $sudahDibeli) + $tambahanTransfer, 1)));
 
         return response()->json([
             'sisa' => $sisaJatah, 

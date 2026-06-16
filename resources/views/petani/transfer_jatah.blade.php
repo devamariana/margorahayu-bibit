@@ -25,12 +25,12 @@
             <form action="{{ route('petani.proses_transfer') }}" method="POST" class="space-y-6">
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {{-- DROPDOWN LAHAN BARU --}}
+                    {{-- DROPDOWN LAHAN --}}
                     <div class="space-y-2">
                         <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pilih Blok Lahan</label>
-                        <select id="lahan_id" onchange="updateLahanURL(this.value)" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800" required>
+                        @php $lahans = \App\Models\Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->get(); @endphp
+                        <select id="lahan_id" name="lahan_id" onchange="updateLahanURL(this.value)" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800" required>
                             <option value="">-- Pilih Lokasi Lahan --</option>
-                            @php $lahans = \App\Models\Lahan::where('petani_id', $petani->id)->where('status', 'disetujui')->get(); @endphp
                             @foreach($lahans as $l)
                                 <option value="{{ $l->id }}" {{ request('lahan_id') == $l->id ? 'selected' : '' }}>
                                     {{ $l->nama_blok }} ({{ $l->luas_lahan }} m²)
@@ -42,7 +42,7 @@
                     {{-- DROPDOWN BIBIT --}}
                     <div class="space-y-2">
                         <label class="block text-xs font-black text-gray-500 uppercase tracking-widest ml-1">Pilih Bibit</label>
-                        <select name="bibit_id" onchange="updateBibitURL(this.value)" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800" required {{ !request('lahan_id') ? 'disabled opacity-50' : '' }}>
+                        <select name="bibit_id" onchange="updateBibitURL(this.value)" class="appearance-none block w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800 {{ !request('lahan_id') ? 'opacity-50' : '' }}" required {{ !request('lahan_id') ? 'disabled' : '' }}>
                             <option value="">-- Pilih Bibit Aktif --</option>
                             @foreach($bibitsTerbuka as $bt)
                                 <option value="{{ $bt->id }}" {{ isset($selectedBibit) && $selectedBibit->id == $bt->id ? 'selected' : '' }}>
@@ -50,11 +50,13 @@
                                 </option>
                             @endforeach
                         </select>
+                        @if(!request('lahan_id'))
+                            <p class="text-[10px] text-orange-500 font-bold italic ml-1">Pilih lahan terlebih dahulu.</p>
+                        @endif
                     </div>
                 </div>
 
-                {{-- Hidden input untuk simpan lahan_id di form submit --}}
-                <input type="hidden" name="lahan_id" value="{{ request('lahan_id') }}">
+
                 @php
                     $isSalahMusimTransfer = isset($selectedBibit) && isset($currentMusimAktif) && ($selectedBibit->kategori_musim !== $currentMusimAktif);
                 @endphp
@@ -136,7 +138,10 @@
                         <span class="text-5xl font-black text-green-600 leading-none">{{ number_format($sisaJatah, 1) }}</span>
                         <span class="text-sm font-bold text-gray-400 ml-1">Kg</span>
                     @elseif(request('lahan_id'))
-                        <span class="text-4xl font-black text-gray-300 leading-none italic">Pilih Bibit</span>
+                        <div class="py-2">
+                             <i class="fas fa-seedling text-gray-200 text-3xl mb-2 block mx-auto"></i>
+                             <span class="text-2xl font-black text-gray-300 leading-none italic uppercase tracking-tighter">Pilih Bibit</span>
+                        </div>
                     @else
                         <div class="py-2">
                              <i class="fas fa-map-marked-alt text-gray-200 text-3xl mb-2 block mx-auto"></i>
@@ -146,10 +151,12 @@
                 </div>
                 <p class="text-[9px] font-bold text-gray-500 mt-2 uppercase tracking-widest">{{ $selectedBibit->nama_bibit ?? 'Menunggu Pilihan' }}</p>
                 <div class="mt-4 pt-4 border-t border-gray-50">
-                    @if(!request('lahan_id'))
-                        <p class="text-[10px] text-orange-500 font-bold italic">Tentukan lahan terlebih dahulu untuk memuat jatah proporsional.</p>
+                    @if(isset($selectedBibit) && request('lahan_id'))
+                        <p class="text-[10px] text-gray-400 italic">Sisa jatah untuk lahan ini.</p>
+                    @elseif(request('lahan_id'))
+                        <p class="text-[10px] text-gray-400 italic">Pilih jenis bibit untuk melihat saldo.</p>
                     @else
-                        <p class="text-[10px] text-gray-400 italic">Jatah akan muncul setelah Anda memilih jenis bibit.</p>
+                        <p class="text-[10px] text-orange-500 font-bold italic">Tentukan lahan terlebih dahulu.</p>
                     @endif
                 </div>
             </div>
@@ -194,12 +201,9 @@
     }
 
     function updateBibitURL(bibitId) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const lahanId = urlParams.get('lahan_id');
-        if (lahanId) {
-            window.location.href = '?lahan_id=' + lahanId + '&bibit_id=' + bibitId + '&select=manual';
-        } else {
-            alert('Pilih lahan terlebih dahulu!');
+        const lahanId = new URLSearchParams(window.location.search).get('lahan_id');
+        if (lahanId && bibitId) {
+            window.location.href = '?lahan_id=' + lahanId + '&bibit_id=' + bibitId;
         }
     }
 </script>

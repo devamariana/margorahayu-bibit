@@ -71,9 +71,10 @@
                 <thead class="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                         <th class="p-4 border-b">No</th>
-                        <th class="p-4 border-b">Tahun</th>
+                        <th class="p-4 border-b">Periode</th>
                         {{-- PERBAIKAN: Menambahkan kolom musim pada header tabel --}}
                         <th class="p-4 border-b">Target Musim</th>
+
                         <th class="p-4 border-b">Tanggal Mulai</th>
                         <th class="p-4 border-b">Tanggal Selesai</th>
                         <th class="p-4 border-b">Ringkasan Aktivitas</th>
@@ -85,7 +86,11 @@
                     @forelse($periodes as $index => $p)
                     <tr class="hover:bg-gray-50/80 transition-all duration-200">
                         <td class="p-4 text-gray-500 font-semibold text-sm">{{ $index + 1 }}</td>
-                        <td class="p-4 font-black text-gray-800 text-sm tracking-tight">{{ $p->tahun }}</td>
+                        <td class="p-4 font-black text-gray-800 text-sm tracking-tight">
+                            Periode {{ \Carbon\Carbon::parse($p->tanggal_mulai)->format('Y') }} / {{ $p->musim ?? 'kemarau' }}
+
+                        </td>
+
                         
                         {{-- PERBAIKAN: Menampilkan status target musim pada baris tabel --}}
                         <td class="p-4">
@@ -357,6 +362,7 @@
 
     // PERBAIKAN: Menambahkan parameter musim pada fungsi openEditModal agar radio button terisi otomatis
     function openEditModal(id, tahun, tanggal_mulai, tanggal_selesai, status, musim) {
+
         document.getElementById('edit_tahun').value = tahun;
         
         document.getElementById('edit_tanggal_mulai').value = tanggal_mulai.split(' ')[0];
@@ -377,5 +383,15 @@
         
         document.getElementById('modalEditPeriode').classList.remove('hidden');
     }
+
+    // Auto-set values saat modal edit dibuka (jika diperlukan)
+    document.addEventListener('DOMContentLoaded', function () {
+        // no-op
+    });
+
+    // Pastikan editor modal selalu tampil (misal jika user klik tombol edit berulang)
+    // dan semua input terisi oleh openEditModal.
+
 </script>
 @endsection
+

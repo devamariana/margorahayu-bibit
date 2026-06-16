@@ -29,22 +29,26 @@ class AdminController extends Controller
              ->where('tanggal_buka', '<=', now()->subDays(7))
              ->update(['is_buka' => false]);
 
-        // 1. Menghitung total semua petani di tabel petanis
+        // 1. Menghitung total semua petani
         $totalPetani = Petani::count();
 
-        // 2. Menghitung petani yang statusnya masih 'pending' (butuh verifikasi)
-        $totalPending = Petani::where('status', 'pending')->count();
+        // 2. Menghitung Antrean Keseluruhan (Petani, Lahan, Pengajuan, Transaksi)
+        $countPendingPetani = Petani::where('status', 'pending')->count();
+        $countPendingLahan = \App\Models\Lahan::where('status', 'pending')->count();
+        $countPendingPengajuan = \App\Models\Pengajuan::where('status', 'menunggu')->count();
+        $countPendingTransaksi = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran', 'menunggu_persetujuan'])->count();
+        
+        $totalAntrean = $countPendingPetani + $countPendingLahan + $countPendingPengajuan + $countPendingTransaksi;
 
         // 3. Menghitung total stok bibit yang sedang AKTIF didistribusikan
         $totalStok = Bibit::where('is_buka', true)->sum('stok');
 
-        // 4. Mengambil 5 data petani terbaru untuk ditampilkan di tabel dashboard
+        // 4. Mengambil 5 data petani terbaru
         $petaniTerbaru = Petani::with('user')->latest()->take(5)->get();
 
         // 5. Data Chart Pembayaran
-        // (Nilainya tetap dipakai di pie chart, namun canvas dirender kondisional di view)
         $totalLunas = \App\Models\Transaksi::where('status_pembayaran', 'sukses')->count();
-        $totalPendingTx = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran', 'menunggu_persetujuan'])->count();
+        $totalPendingTx = $countPendingTransaksi;
 
         // 6. Statistik Periode Aktif
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
@@ -63,13 +67,12 @@ class AdminController extends Controller
                 ->sum('jumlah_beli');
         }
 
-// 7. Data Chart Penjualan (6 bulan terakhir)
-        // Grafik hanya meaningful jika benar-benar ada transaksi sukses (pengambilan)
+        // 7. Data Chart Penjualan (6 bulan terakhir)
         $chartLabels = [];
         $chartData = [];
         for ($i = 5; $i >= 0; $i--) {
             $month = \Carbon\Carbon::today()->subMonths($i);
-            $chartLabels[] = $month->translatedFormat('M'); // atau format('M')
+            $chartLabels[] = $month->translatedFormat('M');
             $chartData[] = \App\Models\Transaksi::where('status_pembayaran', 'sukses')
                 ->whereMonth('created_at', $month->month)
                 ->whereYear('created_at', $month->year)
@@ -78,13 +81,13 @@ class AdminController extends Controller
 
         $hasPengambilan = (collect($chartData)->sum() > 0);
         
-        // 5. Data Chart Pembayaran
-        $totalLunas = \App\Models\Transaksi::where('status_pembayaran', 'sukses')->count();
-        $totalPendingTx = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran', 'menunggu_persetujuan'])->count();
-
-return view('layouts.admin.dashboard', compact(
+        return view('layouts.admin.dashboard', compact(
             'totalPetani', 
-            'totalPending', 
+            'totalAntrean',
+            'countPendingPetani',
+            'countPendingLahan',
+            'countPendingPengajuan',
+            'countPendingTransaksi',
             'totalStok', 
             'petaniTerbaru',
             'totalLunas',
@@ -201,59 +204,110 @@ return view('layouts.admin.dashboard', compact(
     }
 
     /**
-     * Memproses Pengalihan Jatah Antar Petani
+     * Memproses Pengalihan Jatah Antar Petani / Pengembalian ke Admin
      */
     public function prosesPindahJatah(Request $request)
     {
         $request->validate([
             'bibit_id' => 'required|exists:bibits,id',
             'pengirim_id' => 'required|exists:petanis,id',
-            'penerima_id' => 'required|different:pengirim_id|exists:petanis,id',
+            'penerima_id' => 'required',
             'jumlah_kg' => 'required|numeric|min:0.1',
+            'lahan_id' => 'required|exists:lahans,id',
         ]);
 
         $pengirim = Petani::findOrFail($request->pengirim_id);
-        $penerima = Petani::findOrFail($request->penerima_id);
         $bibit = Bibit::findOrFail($request->bibit_id);
+        
+        $penerimaId = $request->penerima_id;
+        $penerima = null;
+        if ($penerimaId !== 'admin') {
+            if ($penerimaId == $request->pengirim_id) {
+                return back()->with('error', 'Pengirim dan penerima tidak boleh sama.');
+            }
+            $penerima = Petani::findOrFail($penerimaId);
+        }
 
         if (!$bibit->is_buka) {
             return back()->with('error', 'Distribusi untuk bibit ini sudah ditutup.');
         }
 
-        // Jatah pengalihan di sisi Admin disesuaikan langsung dengan SISA STOK yang ada di gudang/admin (Ketua)
-        $sisaJatah = $bibit->stok;
+        // 1. Hitung total luas global berdasarkan Pengajuan yang disetujui
+        $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
+            ->where('pengajuans.status', 'disetujui')
+            ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
+            ->sum('lahans.luas_lahan');
+        
+        // 2. Hitung Hak Proposional Lahan Ini
+        $hakLahanIni = 0;
+        if ($totalLuasGlobal > 0) {
+            $pengajuan = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
+                ->where('lahan_id', $request->lahan_id)
+                ->where('status', 'disetujui')
+                ->first();
+            
+            if ($pengajuan) {
+                $lahan = Lahan::find($request->lahan_id);
+                if ($lahan) {
+                    $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * $bibit->stok_awal_real;
+                }
+            }
+        }
 
-        if ($sisaJatah < $request->jumlah_kg) {
-            return back()->with('error', "Jatah pengirim untuk {$bibit->nama_bibit} tidak mencukupi (Sisa: {$sisaJatah} Kg)!");
+        // 3. Hitung Yang Sudah Dibeli di Lahan Ini
+        $sudahDibeli = \App\Models\Transaksi::where('petani_id', $pengirim->id)
+            ->where('bibit_id', $bibit->id)
+            ->where('lahan_id', $request->lahan_id)
+            ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
+            ->sum('jumlah_beli');
+
+        // 4. Hitung Tambahan dari Transfer Jatah
+        $tambahanTransfer = \App\Models\PindahJatah::where('penerima_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg')
+                           - \App\Models\PindahJatah::where('pengirim_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
+
+        // 5. Sisa Jatah Pengirim
+        $sisaJatahPengirim = max(0, round(($hakLahanIni - $sudahDibeli) + $tambahanTransfer, 1));
+
+        if ($sisaJatahPengirim < $request->jumlah_kg) {
+            return back()->with('error', "Jatah pengirim untuk {$bibit->nama_bibit} tidak mencukupi (Sisa: {$sisaJatahPengirim} Kg)!");
         }
 
         // Jalankan Transaction agar jika satu gagal, semua batal (Database Integrity)
-        DB::transaction(function () use ($pengirim, $penerima, $bibit, $request) {
-            // Catat Riwayat/Log (Tanpa increment/decrement manual di tabel Petani, karena sekarang dihitung dinamis)
+        DB::transaction(function () use ($pengirim, $penerima, $penerimaId, $bibit, $request) {
+            // Catat Riwayat/Log
             PindahJatah::create([
                 'bibit_id' => $bibit->id,
                 'pengirim_id' => $request->pengirim_id,
-                'penerima_id' => $request->penerima_id,
+                'penerima_id' => $penerimaId === 'admin' ? null : $penerimaId,
                 'jumlah_kg' => $request->jumlah_kg,
-                'alasan' => 'Pengalihan oleh Admin'
+                'alasan' => $penerimaId === 'admin' ? 'Kembalikan ke Admin / Gudang' : 'Pengalihan oleh Admin'
             ]);
 
-            // Beri notifikasi ke penerima
-            $penerima->user->notify(new SistemNotifikasi(
-                'Jatah Anda Ditambah Admin!', 
-                "Admin telah mengalihkan jatah bibit '{$bibit->nama_bibit}' sebesar {$request->jumlah_kg} Kg kepada Anda.", 
-                'success',
-                url('/dashboard-petani'),
-                $pengirim->id
-            ));
+            // Jika dikembalikan ke admin, update stok bibit agar bertambah
+            if ($penerimaId === 'admin') {
+                $bibit->stok += $request->jumlah_kg;
+                $bibit->save();
+            } else if ($penerima) {
+                // Beri notifikasi ke penerima jika penerima adalah petani
+                $penerima->user->notify(new SistemNotifikasi(
+                    'Jatah Anda Ditambah Admin!', 
+                    "Admin telah mengalihkan jatah bibit '{$bibit->nama_bibit}' sebesar {$request->jumlah_kg} Kg kepada Anda.", 
+                    'success',
+                    url('/dashboard-petani'),
+                    $pengirim->id
+                ));
 
-            // WhatsApp Notification to Receiver
-            if (!empty($penerima->no_hp)) {
-                $pesanWA = "📩 *TRANSFER JATAH BIBIT*\n\nHalo {$penerima->nama_lengkap},\nAdmin telah mengalihkan jatah bibit *{$bibit->nama_bibit}* sebesar *{$request->jumlah_kg} Kg* kepada Anda.\n\nCek jatah Anda di aplikasi sekarang!";
-                $this->sendWA($penerima->no_hp, $pesanWA);
+                // WhatsApp Notification to Receiver
+                if (!empty($penerima->no_hp)) {
+                    $pesanWA = "📩 *TRANSFER JATAH BIBIT*\n\nHalo {$penerima->nama_lengkap},\nAdmin telah mengalihkan jatah bibit *{$bibit->nama_bibit}* sebesar *{$request->jumlah_kg} Kg* kepada Anda.\n\nCek jatah Anda di aplikasi sekarang!";
+                    $this->sendWA($penerima->no_hp, $pesanWA);
+                }
             }
         });
 
+        if ($penerimaId === 'admin') {
+            return back()->with('success', "Jatah {$bibit->nama_bibit} sebesar {$request->jumlah_kg} kg berhasil dikembalikan ke Admin!");
+        }
         return back()->with('success', "Jatah {$bibit->nama_bibit} sebesar {$request->jumlah_kg} kg berhasil dialihkan!");
     }
 
@@ -269,7 +323,7 @@ return view('layouts.admin.dashboard', compact(
         if (!$petani || !$bibit || !$lahan) return response()->json(['sisa' => 0]);
 
         // 1. Hitung total luas global berdasarkan Pengajuan yang disetujui
-        $totalLuasGlobal = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
+        $totalLuasGlobal = \App\Models\Pengajuan::where('pengajuans.bibit_id', $bibit->id)
             ->where('pengajuans.status', 'disetujui')
             ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
             ->sum('lahans.luas_lahan');
@@ -284,7 +338,7 @@ return view('layouts.admin.dashboard', compact(
                 ->first();
             
             if ($pengajuan) {
-                $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * ($bibit->stok_awal ?? $bibit->stok);
+                $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * $bibit->stok_awal_real;
             }
         }
 
@@ -349,7 +403,7 @@ return view('layouts.admin.dashboard', compact(
     }
 
     /**
-     * Verifikasi Status Lahan
+     * Verifikasi Status Lahan & Pengajuan Bibit Terintegrasi (Satu Aksi)
      */
     public function verifikasiLahan(Request $request, $id)
     {
@@ -360,23 +414,39 @@ return view('layouts.admin.dashboard', compact(
             'catatan' => 'nullable|string'
         ]);
 
+        // 1. Update Status Lahan
         $lahan->status = $request->status;
         $lahan->catatan_admin = $request->catatan;
         $lahan->save();
+
+        // 2. OTOMATIS: Verifikasi Pengajuan Bibit yang menempel pada lahan ini
+        $pengajuanPending = \App\Models\Pengajuan::where('lahan_id', $lahan->id)
+            ->where('status', 'menunggu')
+            ->first();
+
+        if ($pengajuanPending) {
+            $pengajuanPending->status = $request->status == 'disetujui' ? 'disetujui' : 'ditolak';
+            $pengajuanPending->catatan = $request->catatan;
+            $pengajuanPending->save();
+        }
 
         // Tandai notifikasi terkait lahan ini sebagai dibaca (untuk admin)
         Auth::user()->unreadNotifications()
             ->where('data->id_terkait', $lahan->id)
             ->get()->markAsRead();
 
-        // Kirim Notifikasi ke User terkait lahan
+        // 3. Kirim Notifikasi ke User (Lahan & Bibit sekaligus)
         $petani = $lahan->petani;
         if ($petani && $petani->user) {
+            $statusText = $request->status == 'disetujui' ? 'disetujui' : 'ditolak';
+            $bibitInfo = $pengajuanPending ? " serta pengajuan bibit {$pengajuanPending->bibit->nama_bibit}" : "";
+            
             $pesan = $request->status == 'disetujui' 
-                ? "Data Lahan Anda berlokasi di {$lahan->nama_blok} telah disetujui." 
-                : "Pengajuan Data Lahan Anda di {$lahan->nama_blok} ditolak Admin. Alasan: " . ($request->catatan ?? 'Tidak ada catatan.');
+                ? "Data Lahan Anda di {$lahan->nama_blok}{$bibitInfo} telah disetujui Admin." 
+                : "Pengajuan Lahan di {$lahan->nama_blok}{$bibitInfo} ditolak Admin. Alasan: " . ($request->catatan ?? 'Tidak ada catatan.');
+
             $petani->user->notify(new SistemNotifikasi(
-                'Status Data Lahan', 
+                'Status Verifikasi Lahan & Bibit', 
                 $pesan, 
                 $request->status == 'disetujui' ? 'success' : 'warning',
                 url('/petani/lahan'),
@@ -384,15 +454,16 @@ return view('layouts.admin.dashboard', compact(
             ));
         }
 
-        // WhatsApp Notification
+        // 4. WhatsApp Notification
         if ($petani && !empty($petani->no_hp)) {
+            $bibitInfoWA = $pengajuanPending ? " & bibit {$pengajuanPending->bibit->nama_bibit}" : "";
             $pesanWA = $request->status == 'disetujui' 
-                ? "✅ *LAHAN DISETUJUI*\n\nHalo {$petani->nama_lengkap},\nData Lahan Anda di *{$lahan->nama_blok}* dengan luas {$lahan->luas_lahan} m2 telah disetujui Admin." 
-                : "❌ *LAHAN DITOLAK*\n\nHalo {$petani->nama_lengkap},\nMohon maaf, pengajuan data lahan Anda di *{$lahan->nama_blok}* ditolak Admin.";
+                ? "✅ *VERIFIKASI BERHASIL*\n\nHalo {$petani->nama_lengkap},\nData Lahan di *{$lahan->nama_blok}*{$bibitInfoWA} telah disetujui Admin. Silakan cek jatah bibit Anda!" 
+                : "❌ *VERIFIKASI DITOLAK*\n\nHalo {$petani->nama_lengkap},\nMohon maaf, pengajuan lahan *{$lahan->nama_blok}*{$bibitInfoWA} ditolak Admin.";
             $this->sendWA($petani->no_hp, $pesanWA);
         }
 
-        return back()->with('success', 'Status Lahan berhasil diperbarui menjadi ' . ucfirst($request->status));
+        return back()->with('success', 'Status Lahan & Pengajuan Bibit berhasil diperbarui menjadi ' . ucfirst($request->status));
     }
 
     /**

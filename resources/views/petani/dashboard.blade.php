@@ -14,7 +14,7 @@
     @endif
 
     {{-- INFORMASI UTAMA: LAHAN (SELALU MUNCUL) --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         {{-- CARD 1: TOTAL LUAS LAHAN --}}
         <div class="bg-gradient-to-br from-green-600 to-green-700 p-6 rounded-2xl shadow-lg border border-green-500/20 text-white flex flex-col justify-between">
             <div>
@@ -38,7 +38,21 @@
             </div>
         </div>
 
-        {{-- CARD 3: STATUS PROFIL --}}
+        {{-- CARD 3: SALDO PETANI --}}
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5 hover:shadow-md transition-all duration-300 group">
+            <div class="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                <i class="fas fa-wallet text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest leading-none mb-1">Saldo Anda</p>
+                <div class="flex items-baseline gap-1">
+                    <p class="text-xl font-black text-purple-600 leading-none">Rp {{ number_format($petani->saldo ?? 0, 0, ',', '.') }}</p>
+                </div>
+                <p class="text-[9px] text-gray-500 mt-1">Dari pengembalian bibit</p>
+            </div>
+        </div>
+
+        {{-- CARD 4: STATUS PROFIL --}}
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5 hover:shadow-md transition-all duration-300 group">
             <div class="w-14 h-14 {{ $petani && $petani->status == 'disetujui' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600' }} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i class="fas {{ $petani && $petani->status == 'disetujui' ? 'fa-id-badge' : 'fa-user-clock' }} text-2xl"></i>

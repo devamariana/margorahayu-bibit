@@ -80,4 +80,34 @@ class Bibit extends Model
     {
         return $this->hasMany(Pengajuan::class, 'bibit_id');
     }
+
+    /**
+     * Hitung stok awal yang sebenarnya.
+     * Jika stok_awal tersimpan di DB, gunakan itu.
+     * Jika tidak, rekonstruksi:
+     *   stok_awal_real = stok_saat_ini + total_dibeli - total_dikembalikan_ke_admin
+     *
+     * Mengapa dikurangi total_dikembalikan_ke_admin?
+     * Karena saat petani mengembalikan jatah, bibit->stok bertambah (stok admin naik kembali).
+     * Tanpa pengurangan ini, stok_awal_real akan ikut naik setiap ada pengembalian,
+     * yang menyebabkan hakLahanIni petani tampak membesar padahal harusnya tetap.
+     */
+    public function getStokAwalRealAttribute()
+    {
+        if (!empty($this->stok_awal) && $this->stok_awal > 0) {
+            return $this->stok_awal;
+        }
+
+        $totalDibeli = $this->transaksis()
+            ->whereNotIn('status_pembayaran', ['batal', 'kadaluarsa', 'ditolak', 'cancel', 'expire'])
+            ->sum('jumlah_beli');
+
+        // Jatah yang dikembalikan petani ke admin (penerima_id = null di PindahJatah)
+        // menambah stok saat ini tapi BUKAN bagian dari stok awal asli.
+        $totalDikembalikanKeAdmin = \App\Models\PindahJatah::where('bibit_id', $this->id)
+            ->whereNull('penerima_id')
+            ->sum('jumlah_kg');
+
+        return $this->stok + $totalDibeli - $totalDikembalikanKeAdmin;
+    }
 }

@@ -15,14 +15,104 @@ use App\Traits\WhatsappNotifier;
 class BibitController extends Controller
 {
     use WhatsappNotifier;
-    public function index() {
-        // FITUR OTOMATIS: Jika distribusi sudah lewat 7 hari, otomatis tutup statusnya di database
-        Bibit::where('is_buka', true)
-             ->where('tanggal_buka', '<=', now()->subDays(7))
-             ->update(['is_buka' => false]);
 
-        $bibits = Bibit::all();
+    public function index() {
+        // FITUR OTOMATIS:
+        // - Setelah 15 hari, jika stok habis -> tutup distribusi.
+        // - Jika stok masih ada -> lanjut ke periode/musim berikutnya (agar petani bisa ambil dari stok sisa).
+
+        $this->autoSwitchPeriodIfNeeded();
+
+        $bibits = Bibit::latest()->get();
         return view('layouts.admin.data_bibit', compact('bibits'));
+    }
+
+    private function autoSwitchPeriodIfNeeded(): void
+    {
+        $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
+        if (!$periodeAktif) {
+            // Tidak ada periode aktif, tidak perlu auto-switch
+            return;
+        }
+
+        // Tutup distribusi yang sudah lewat 15 hari dan stoknya habis
+        Bibit::where('is_buka', true)
+            ->where('tanggal_buka', '<=', now()->subDays(15))
+            ->where('stok', '<=', 0)
+            ->update(['is_buka' => false]);
+
+        // Cek apakah masih ada bibit yang lewat 15 hari tapi stok masih > 0.
+        // Jika ya, kita lanjutkan musim/periode berikutnya.
+        $masihAdaStok = Bibit::where('is_buka', true)
+            ->where('tanggal_buka', '<=', now()->subDays(15))
+            ->where('stok', '>', 0)
+            ->exists();
+
+        if (!$masihAdaStok) {
+            return;
+        }
+
+        // Tentukan musim berikutnya
+        $musimSaatIni = $periodeAktif->musim;
+        $musimBerikutnya = $musimSaatIni === 'kemarau' ? 'penghujan' : 'kemarau';
+
+        // Tutup periode aktif saat ini
+        $periodeAktif->update(['status' => 'berakhir']);
+
+        // Cari periode berstatus baru untuk musim berikutnya.
+        // Prinsip: jangan buat data “setahun” sekaligus. Kita hanya aktifkan 1 periode berikutnya (periode record) jika belum ada.
+        // Urutan prioritas:
+        // 1) Jika ada periode berakhir dengan musim berikutnya, re-aktifkan yang paling terbaru.
+        // 2) Jika tidak ada, buat periode baru hanya untuk siklus 15 hari mulai hari ini.
+
+        $periodeBaru = \App\Models\Periode::where('status', 'berakhir')
+            ->where('musim', $musimBerikutnya)
+            ->latest()
+            ->first();
+
+        if ($periodeBaru) {
+            $periodeBaru->update([
+                'status' => 'aktif',
+                'tanggal_mulai' => now()->format('Y-m-d'),
+                'tanggal_selesai' => now()->addDays(15)->format('Y-m-d'),
+            ]);
+        } else {
+            $periodeBaru = \App\Models\Periode::create([
+                // Jangan kontekskan tahun ke periode aktif.
+                // Karena auto-switch ini hanya membuat siklus 15 hari, gunakan tahun berdasarkan tanggal saat ini.
+                'tahun' => date('Y'),
+                'musim' => $musimBerikutnya,
+                'tanggal_mulai' => now()->format('Y-m-d'),
+                'tanggal_selesai' => now()->addDays(15)->format('Y-m-d'),
+                'status' => 'aktif',
+            ]);
+        }
+
+        // Sinkronisasi bibit: buka musim berikutnya, tutup musim lainnya
+        \App\Models\Bibit::where('kategori_musim', '!=', $musimBerikutnya)->update(['is_buka' => false]);
+
+        // Agar stok sisa tetap bisa dipakai, kita pindahkan periode_id bibit musim berikutnya ke periode baru
+        // dan nyalakan is_buka untuk bibit yang stoknya ada.
+        $bibitsMusimBerikut = \App\Models\Bibit::where('kategori_musim', $musimBerikutnya)
+            ->where('stok', '>', 0)
+            ->get();
+
+        foreach ($bibitsMusimBerikut as $bibit) {
+            // Jika bibit ini sudah ada di periode baru, skip.
+            if ($bibit->periode_id !== $periodeBaru->id) {
+                $bibit->update([
+                    'periode_id' => $periodeBaru->id,
+                    'is_buka' => true,
+                    'tanggal_buka' => now(),
+                    'stok_awal' => $bibit->stok,
+                ]);
+            } else {
+                $bibit->update([
+                    'is_buka' => true,
+                    'tanggal_buka' => now(),
+                ]);
+            }
+        }
     }
 
     public function store(Request $request)

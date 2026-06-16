@@ -1,6 +1,14 @@
 <!-- Overlay Mobile Admin -->
 <div id="mobileAdminOverlay" onclick="toggleAdminSidebar()" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
 
+@php
+    // Hitung Notifikasi Real-time untuk Badge
+    $countPendingPetani = \App\Models\Petani::where('status', 'pending')->count();
+    $countPendingLahan = \App\Models\Lahan::where('status', 'pending')->count();
+    $countPendingPengajuan = \App\Models\Pengajuan::where('status', 'menunggu')->count();
+    $countPendingTransaksi = \App\Models\Transaksi::whereIn('status_pembayaran', ['pending', 'menunggu_pembayaran', 'menunggu_persetujuan'])->count();
+@endphp
+
 <div id="adminSidebarMenu" class="w-64 bg-[#2D6A4F] text-white flex-shrink-0 flex flex-col shadow-2xl h-screen fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-50">
     <div class="p-6 border-b border-[#40916C] bg-[#1B4332] flex justify-between items-center">
         <div class="flex items-center gap-3">
@@ -22,8 +30,15 @@
 
         {{-- Menu Data Petani --}}
         <a href="{{ route('admin.data_petani') }}" 
-            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.data_petani') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
-            <i class="fas fa-users mr-3 group-hover:scale-110 transition"></i> Data Petani
+            class="flex items-center justify-between py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.data_petani') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
+            <div class="flex items-center">
+                <i class="fas fa-users mr-3 group-hover:scale-110 transition"></i> Data Petani
+            </div>
+            @if($countPendingPetani > 0)
+                <span class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse shadow-sm">
+                    {{ $countPendingPetani }}
+                </span>
+            @endif
         </a>
 
         {{-- Menu Data Bibit --}}
@@ -31,11 +46,33 @@
             class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.data_bibit') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
             <i class="fas fa-seedling mr-3 group-hover:scale-110 transition"></i> Data Bibit
         </a>
-        {{-- REVISI: Menu Pengalihan Jatah --}}
+        
+        {{-- Menu Data Lahan --}}
+        <a href="{{ route('admin.data_lahan') }}" 
+            class="flex items-center justify-between py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.data_lahan') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
+            <div class="flex items-center">
+                <i class="fas fa-map-marked-alt mr-3 group-hover:scale-110 transition text-sm"></i> Data Lahan
+            </div>
+            <div class="flex gap-1">
+                @if($countPendingLahan > 0)
+                    <span title="Lahan Pending" class="bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                        {{ $countPendingLahan }}
+                    </span>
+                @endif
+                @if($countPendingPengajuan > 0)
+                    <span title="Pengajuan Bibit" class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-bounce shadow-sm">
+                        {{ $countPendingPengajuan }}
+                    </span>
+                @endif
+            </div>
+        </a>
+
+        {{-- Menu Pengalihan Jatah --}}
         <a href="{{ route('admin.transfer_jatah') }}" 
             class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.transfer_jatah') ? 'bg-[#40916C] shadow-inner font-bold border-l-4 border-[#D8F3DC]' : 'text-orange-100 hover:bg-[#40916C]' }} border border-dashed border-orange-300/30">
             <i class="fas fa-exchange-alt mr-3 group-hover:scale-110 transition duration-500"></i> Pengalihan Jatah
         </a>
+
         <div class="py-2 border-t border-[#40916C]/30 my-2"></div>
 
         {{-- Menu Data Periode --}}
@@ -44,18 +81,17 @@
             <i class="fas fa-calendar-alt mr-3 group-hover:scale-110 transition"></i> Data Periode
         </a>
 
-        {{-- Menu Data Lahan --}}
-        <a href="{{ route('admin.data_lahan') }}" 
-            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.data_lahan') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
-            <i class="fas fa-map-marked-alt mr-3 group-hover:scale-110 transition text-sm"></i> Data Lahan
-        </a>
-
-
-
         {{-- Menu Data Penjualan (Monitor Transaksi) --}}
         <a href="{{ route('admin.riwayat_transaksi') }}" 
-            class="flex items-center py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.riwayat_transaksi') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
-            <i class="fas fa-shopping-cart mr-3 group-hover:scale-110 transition"></i> Data Penjualan
+            class="flex items-center justify-between py-3 px-4 rounded-xl transition group {{ request()->routeIs('admin.riwayat_transaksi') ? 'bg-[#40916C] font-bold border-l-4 border-[#D8F3DC]' : 'text-green-100 hover:bg-[#40916C]' }}">
+            <div class="flex items-center">
+                <i class="fas fa-shopping-cart mr-3 group-hover:scale-110 transition"></i> Data Penjualan
+            </div>
+            @if($countPendingTransaksi > 0)
+                <span class="bg-yellow-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                    {{ $countPendingTransaksi }}
+                </span>
+            @endif
         </a>
 
         {{-- Menu Rekap Laporan (Statistik) --}}

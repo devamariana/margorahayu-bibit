@@ -56,62 +56,47 @@
                         <td class="p-4 font-medium text-gray-700">{{ $l->luas_lahan }} m²</td>
                         <td class="p-4">
                             @php
-                                // Ambil pengajuan terakhir untuk lahan ini pada periode aktif
-                                $pengajuan = $l->pengajuans->last(); 
+                                // Ambil pengajuan terakhir untuk lahan ini pada TAHUN TERPILIH
+                                $pengajuan = $l->pengajuans->filter(function($p) use ($selectedTahun) {
+                                    return $p->created_at->year == $selectedTahun;
+                                })->last(); 
                             @endphp
                             
                             @if($pengajuan)
                                 <div class="flex flex-col gap-1">
                                     <div class="flex items-center gap-1">
                                         <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-black uppercase border border-blue-200">
-                                            {{ $pengajuan->bibit->nama_bibit }}
+                                            {{ $pengajuan->bibit->nama_bibit ?? 'Bibit Dihapus' }}
                                         </span>
-                                        @if($pengajuan->status === 'menunggu')
-                                            <div class="flex gap-1 ml-1">
-                                                <form action="{{ route('admin.verifikasi_pengajuan', $pengajuan->id) }}" method="POST">
-                                                    @csrf
-                                                    <input type="hidden" name="status" value="disetujui">
-                                                    <button type="button" onclick="confirmActionPengajuan(this, 'Setujui pengajuan bibit ini?')" class="w-5 h-5 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center justify-center">
-                                                        <i class="fas fa-check text-[8px]"></i>
-                                                    </button>
-                                                </form>
-                                                <form action="{{ route('admin.verifikasi_pengajuan', $pengajuan->id) }}" method="POST">
-                                                    @csrf
-                                                    <input type="hidden" name="status" value="ditolak">
-                                                    <button type="button" onclick="confirmActionPengajuan(this, 'Tolak pengajuan bibit ini?', 'warning')" class="w-5 h-5 bg-red-600 text-white rounded hover:bg-red-700 transition flex items-center justify-center">
-                                                        <i class="fas fa-times text-[8px]"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        @endif
                                     </div>
                                     <span class="text-[9px] uppercase font-bold {{ $pengajuan->status === 'disetujui' ? 'text-green-600' : ($pengajuan->status === 'ditolak' ? 'text-red-500' : 'text-amber-500') }}">
                                         {{ $pengajuan->status }}
                                     </span>
                                 </div>
                             @else
-                                <span class="text-[10px] text-gray-400 italic">Belum ada pengajuan</span>
+                                <span class="text-[10px] text-gray-400 italic">Tidak ada pengajuan di {{ $selectedTahun }}</span>
                             @endif
                         </td>
-                        <td class="p-4">
+                        <td class="p-4 text-center">
                             @php
-                                $bibitDibeli = $l->transaksi
+                                // Ambil bibit terakhir yang dibeli SUKSES pada tahun ini
+                                $lastTrx = $l->transaksi
                                     ->whereIn('status_pembayaran', ['sukses', 'lunas'])
                                     ->filter(function($t) use ($selectedTahun) {
                                         return $t->bibit && $t->created_at->year == $selectedTahun;
                                     })
-                                    ->pluck('bibit.nama_bibit')
-                                    ->unique();
+                                    ->last();
                             @endphp
                             
-                            @if($bibitDibeli->count() > 0)
-                                @foreach($bibitDibeli as $namaBibit)
-                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[9px] font-bold uppercase inline-block m-0.5">
-                                        {{ $namaBibit }}
+                            @if($lastTrx)
+                                <div class="inline-flex flex-col items-center">
+                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[9px] font-bold uppercase shadow-sm">
+                                        {{ $lastTrx->bibit->nama_bibit }}
                                     </span>
-                                @endforeach
+                                    <span class="text-[8px] text-gray-400 mt-1">{{ $lastTrx->created_at->format('d/m/Y') }}</span>
+                                </div>
                             @else
-                                <span class="text-[10px] text-gray-400 italic">Belum ada pembelian</span>
+                                <span class="text-[10px] text-gray-400 italic">Belum ada pembelian di {{ $selectedTahun }}</span>
                             @endif
                         </td>
                         <td class="p-4">
@@ -206,47 +191,6 @@
         }
     }
 
-    function confirmActionPengajuan(button, message, type = 'question') {
-        const form = button.closest('form');
-        const status = form.querySelector('input[name="status"]').value;
-
-        if (status === 'ditolak') {
-            Swal.fire({
-                title: 'Alasan Penolakan Pengajuan',
-                input: 'textarea',
-                inputLabel: 'Berikan alasan penolakan bibit',
-                inputPlaceholder: 'Contoh: Stok tidak cukup atau jatah penuh...',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Tolak Pengajuan',
-                inputValidator: (value) => {
-                    if (!value) return 'Alasan harus diisi!'
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const extraInput = document.createElement('input');
-                    extraInput.type = 'hidden';
-                    extraInput.name = 'catatan';
-                    extraInput.value = result.value;
-                    form.appendChild(extraInput);
-                    form.submit();
-                }
-            });
-        } else {
-            Swal.fire({
-                title: 'Konfirmasi Pengajuan',
-                text: message,
-                icon: type,
-                showCancelButton: true,
-                confirmButtonColor: '#2D6A4F',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Ya, Setujui'
-            }).then((result) => {
-                if (result.isConfirmed) form.submit();
-            });
-        }
-    }
 </script>
 @endpush
 @endsection
