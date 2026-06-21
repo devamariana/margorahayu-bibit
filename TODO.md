@@ -1,12 +1,10 @@
-- [ ] Implement otomatis “lanjut ke periode/musim berikutnya” setelah 15 hari, jika stok bibit masih > 0
-  - [ ] Di `Admin/BibitController` tambahkan logic:
-    - [ ] deteksi bibit yang lewat 15 hari tapi stok > 0
-    - [ ] tutup periode aktif saat ini
-    - [ ] aktifkan periode baru untuk musim berikutnya (pakai `kategori_musim` / `musim`)
-    - [ ] duplikasi/rekonsiliasi bibit agar `periode_id`, `is_buka=true`, `tanggal_buka=now()` untuk musim terkait
-- [ ] Saat stok habis (stok <= 0), pastikan distribusi benar-benar berhenti (is_buka=false) dan tidak membuka musim baru untuk bibit tersebut
-- [ ] Uji skenario end-to-end:
-  - [ ] lewat 15 hari + stok masih ada -> petani masih bisa beli di periode baru
-  - [ ] lewat 15 hari + stok habis -> petani tidak bisa beli
-- [ ] Rapikan teks notifikasi/label (hapus referensi “7 hari” bila perlu)
+# TODO
+
+## Task: Gabungkan katalog bibit jadi satu halaman beli bibit
+- [x] Tentukan perubahan pada controller PetaniController: hapus kebutuhan memilih dari katalog sebelumnya
+- [x] Ubah halaman `resources/views/petani/beli_bibit.blade.php` supaya tanpa langkah katalog terpisah (konsolidasikan UI)
+- [x] Pastikan route `/informasi-bibit` tidak lagi diperlukan untuk pembelian (tetap bisa ditampilkan, tapi alur beli langsung)
+- [ ] Jalankan pengecekan error form: pastikan validasi `bibit_id` dan request tetap sesuai saat pengguna langsung memilih di halaman beli bibit
+- [ ] Testing cepat: pilih lahan -> pilih bibit -> proses beli
+
 

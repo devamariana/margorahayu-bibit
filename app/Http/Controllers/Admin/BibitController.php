@@ -31,39 +31,33 @@ class BibitController extends Controller
     {
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
         if (!$periodeAktif) {
-            // Tidak ada periode aktif, tidak perlu auto-switch
             return;
         }
 
-        // Tutup distribusi yang sudah lewat 15 hari dan stoknya habis
-        Bibit::where('is_buka', true)
-            ->where('tanggal_buka', '<=', now()->subDays(15))
-            ->where('stok', '<=', 0)
-            ->update(['is_buka' => false]);
+        $batasWaktu = now()->subDays(15);
+        $bibitKadaluarsa = Bibit::where('is_buka', true)
+            ->whereNotNull('tanggal_buka')
+            ->where('tanggal_buka', '<=', $batasWaktu);
 
-        // Cek apakah masih ada bibit yang lewat 15 hari tapi stok masih > 0.
-        // Jika ya, kita lanjutkan musim/periode berikutnya.
-        $masihAdaStok = Bibit::where('is_buka', true)
-            ->where('tanggal_buka', '<=', now()->subDays(15))
+        // Jika distribusi sudah lewat 15 hari dan stok kosong, hentikan distribusi.
+        $bibitKadaluarsa->where('stok', '<=', 0)->update(['is_buka' => false]);
+
+        // Jika ada bibit yang lewat 15 hari namun masih punya sisa stok,
+        // proses ke periode berikutnya.
+        $bibitSisa = Bibit::where('is_buka', true)
+            ->whereNotNull('tanggal_buka')
+            ->where('tanggal_buka', '<=', $batasWaktu)
             ->where('stok', '>', 0)
-            ->exists();
+            ->get();
 
-        if (!$masihAdaStok) {
+        if ($bibitSisa->isEmpty()) {
             return;
         }
 
-        // Tentukan musim berikutnya
         $musimSaatIni = $periodeAktif->musim;
         $musimBerikutnya = $musimSaatIni === 'kemarau' ? 'penghujan' : 'kemarau';
 
-        // Tutup periode aktif saat ini
         $periodeAktif->update(['status' => 'berakhir']);
-
-        // Cari periode berstatus baru untuk musim berikutnya.
-        // Prinsip: jangan buat data “setahun” sekaligus. Kita hanya aktifkan 1 periode berikutnya (periode record) jika belum ada.
-        // Urutan prioritas:
-        // 1) Jika ada periode berakhir dengan musim berikutnya, re-aktifkan yang paling terbaru.
-        // 2) Jika tidak ada, buat periode baru hanya untuk siklus 15 hari mulai hari ini.
 
         $periodeBaru = \App\Models\Periode::where('status', 'berakhir')
             ->where('musim', $musimBerikutnya)
@@ -78,8 +72,6 @@ class BibitController extends Controller
             ]);
         } else {
             $periodeBaru = \App\Models\Periode::create([
-                // Jangan kontekskan tahun ke periode aktif.
-                // Karena auto-switch ini hanya membuat siklus 15 hari, gunakan tahun berdasarkan tanggal saat ini.
                 'tahun' => date('Y'),
                 'musim' => $musimBerikutnya,
                 'tanggal_mulai' => now()->format('Y-m-d'),
@@ -88,30 +80,24 @@ class BibitController extends Controller
             ]);
         }
 
-        // Sinkronisasi bibit: buka musim berikutnya, tutup musim lainnya
-        \App\Models\Bibit::where('kategori_musim', '!=', $musimBerikutnya)->update(['is_buka' => false]);
+        // Tutup semua distribusi bibit yang tidak cocok dengan musim berikutnya.
+        \App\Models\Bibit::where('is_buka', true)
+            ->whereRaw('LOWER(TRIM(kategori_musim)) != ?', [trim(strtolower($musimBerikutnya))])
+            ->update(['is_buka' => false]);
 
-        // Agar stok sisa tetap bisa dipakai, kita pindahkan periode_id bibit musim berikutnya ke periode baru
-        // dan nyalakan is_buka untuk bibit yang stoknya ada.
-        $bibitsMusimBerikut = \App\Models\Bibit::where('kategori_musim', $musimBerikutnya)
-            ->where('stok', '>', 0)
-            ->get();
-
-        foreach ($bibitsMusimBerikut as $bibit) {
-            // Jika bibit ini sudah ada di periode baru, skip.
-            if ($bibit->periode_id !== $periodeBaru->id) {
-                $bibit->update([
-                    'periode_id' => $periodeBaru->id,
-                    'is_buka' => true,
-                    'tanggal_buka' => now(),
-                    'stok_awal' => $bibit->stok,
-                ]);
-            } else {
-                $bibit->update([
-                    'is_buka' => true,
-                    'tanggal_buka' => now(),
-                ]);
+        foreach ($bibitSisa as $bibit) {
+            if (trim(strtolower($bibit->kategori_musim)) !== trim(strtolower($musimBerikutnya))) {
+                $bibit->update(['is_buka' => false]);
+                continue;
             }
+
+            $bibit->update([
+                'periode_id' => $periodeBaru->id,
+                'is_buka' => true,
+                'tanggal_buka' => now(),
+                'stok_awal' => $bibit->stok,
+                'status' => 'tersedia',
+            ]);
         }
     }
 
@@ -128,8 +114,9 @@ class BibitController extends Controller
         ]);
 
         $data = $request->only(['nama_bibit', 'jenis', 'kategori_musim', 'stok', 'harga_subsidi', 'deskripsi', 'sumber_pasokan']);
+        $data['harga_subsidi'] = intval(preg_replace('/[^0-9]/', '', $request->input('harga_subsidi', 0)));
+        $data['stok'] = is_numeric($request->input('stok')) ? floatval($request->input('stok')) : 0;
 
-        
         if ($request->hasFile('gambar')) {
             $file = $request->file('gambar');
             $namaFile = 'bibit_' . time() . '.' . $file->getClientOriginalExtension();
@@ -192,7 +179,8 @@ class BibitController extends Controller
         }
 
         $data = $request->only(['nama_bibit', 'jenis', 'kategori_musim', 'stok', 'harga_subsidi', 'deskripsi', 'sumber_pasokan']);
-
+        $data['harga_subsidi'] = intval(preg_replace('/[^0-9]/', '', $request->input('harga_subsidi', 0)));
+        $data['stok'] = is_numeric($request->input('stok')) ? floatval($request->input('stok')) : $bibit->stok;
 
         if ($request->hasFile('gambar')) {
             if ($bibit->gambar) {
@@ -356,7 +344,7 @@ class BibitController extends Controller
                                 ->where('pengirim_id', $p->id)
                                 ->sum('jumlah_kg');
             
-            $hak = round($hakProposional + $tambahanTransfer, 1);
+            $hak = $hakProposional + $tambahanTransfer;
             
             // Cari Realisasi (Berapa yang sudah diambil/dibayar)
             $diambil = DB::table('transaksis')

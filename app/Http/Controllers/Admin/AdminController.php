@@ -237,23 +237,17 @@ class AdminController extends Controller
             ->where('pengajuans.status', 'disetujui')
             ->join('lahans', 'pengajuans.lahan_id', '=', 'lahans.id')
             ->sum('lahans.luas_lahan');
-        
-        // 2. Hitung Hak Proposional Lahan Ini
+
+        // 2. Hitung Hak Proposional Khusus Lahan Ini
+        // Perubahan: hitung proporsional berdasarkan totalLuasGlobal apabila tersedia,
+        // walaupun lahan itu sendiri tidak memiliki pengajuan yang eksplisit disetujui.
         $hakLahanIni = 0;
         if ($totalLuasGlobal > 0) {
-            $pengajuan = \App\Models\Pengajuan::where('bibit_id', $bibit->id)
-                ->where('lahan_id', $request->lahan_id)
-                ->where('status', 'disetujui')
-                ->first();
-            
-            if ($pengajuan) {
-                $lahan = Lahan::find($request->lahan_id);
-                if ($lahan) {
-                    $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * $bibit->stok_awal_real;
-                }
+            $lahan = Lahan::find($request->lahan_id);
+            if ($lahan) {
+                $hakLahanIni = ($lahan->luas_lahan / $totalLuasGlobal) * $bibit->stok_awal_real;
             }
         }
-
         // 3. Hitung Yang Sudah Dibeli di Lahan Ini
         $sudahDibeli = \App\Models\Transaksi::where('petani_id', $pengirim->id)
             ->where('bibit_id', $bibit->id)
@@ -266,7 +260,7 @@ class AdminController extends Controller
                            - \App\Models\PindahJatah::where('pengirim_id', $pengirim->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
 
         // 5. Sisa Jatah Pengirim
-        $sisaJatahPengirim = max(0, round(($hakLahanIni - $sudahDibeli) + $tambahanTransfer, 1));
+        $sisaJatahPengirim = max(0, ($hakLahanIni - $sudahDibeli) + $tambahanTransfer);
 
         if ($sisaJatahPengirim < $request->jumlah_kg) {
             return back()->with('error', "Jatah pengirim untuk {$bibit->nama_bibit} tidak mencukupi (Sisa: {$sisaJatahPengirim} Kg)!");
@@ -354,7 +348,7 @@ class AdminController extends Controller
                            - \App\Models\PindahJatah::where('pengirim_id', $petani->id)->where('bibit_id', $bibit->id)->sum('jumlah_kg');
 
         // 5. Sisa Jatah
-        $sisaJatah = max(0, round(($hakLahanIni - $sudahDibeli) + $tambahanTransfer, 1));
+        $sisaJatah = max(0, ($hakLahanIni - $sudahDibeli) + $tambahanTransfer);
 
         return response()->json(['sisa' => $sisaJatah]);
     }

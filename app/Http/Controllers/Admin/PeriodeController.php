@@ -49,11 +49,18 @@ class PeriodeController extends Controller
     {
         $request->validate([
             'tahun' => 'required',
-            'musim' => 'required|in:penghujan,kemarau', // Validasi input musim baru
+            'musim' => 'required|in:penghujan,kemarau',
             'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
             'status' => 'required|in:aktif,berakhir',
         ]);
+
+        $tanggalMulai = \Carbon\Carbon::parse($request->tanggal_mulai);
+        $tanggalSelesai = $tanggalMulai->copy()->addDays(14);
+
+        $data = $request->all();
+        $data['tahun'] = $tanggalMulai->format('Y');
+        $data['tanggal_selesai'] = $tanggalSelesai->format('Y-m-d');
 
         // LOGIKA OTOMATIS: Jika yang baru di-set AKTIF, maka yang lain harus BERAKHIR
         if ($request->status == 'aktif') {
@@ -61,7 +68,7 @@ class PeriodeController extends Controller
             Periode::where('status', 'aktif')->update(['status' => 'berakhir']);
         }
 
-        $periodeBaru = Periode::create($request->all());
+        $periodeBaru = Periode::create($data);
 
         // PINDAHKAN SISA STOK KE PERIODE BARU JIKA AKTIF
         if ($request->status == 'aktif' && isset($periodeLama) && $periodeLama->count() > 0) {
@@ -120,7 +127,14 @@ class PeriodeController extends Controller
             Periode::where('id', '!=', $id)->where('status', 'aktif')->update(['status' => 'berakhir']);
         }
 
-        $periode->update($request->all());
+        $tanggalMulai = \Carbon\Carbon::parse($request->tanggal_mulai);
+        $tanggalSelesai = $tanggalMulai->copy()->addDays(14);
+
+        $data = $request->all();
+        $data['tahun'] = $tanggalMulai->format('Y');
+        $data['tanggal_selesai'] = $tanggalSelesai->format('Y-m-d');
+
+        $periode->update($data);
 
         // OTOMATIS: Jika periode ditutup, semua distribusi bibit di dalamnya harus ditutup
         if ($request->status == 'berakhir') {

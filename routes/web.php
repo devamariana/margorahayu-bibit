@@ -102,6 +102,7 @@ Route::middleware(['auth:petani', 'checkRole:petani'])->group(function () {
     Route::get('/petani/lahan', [PetaniController::class, 'lahan'])->name('petani.lahan');
     Route::post('/petani/lahan/store', [PetaniController::class, 'storeLahan'])->name('petani.store_lahan');
     Route::delete('/petani/lahan/{id}', [PetaniController::class, 'hapusLahan'])->name('petani.hapus_lahan');
+    Route::put('/petani/lahan/update/{id}', [PetaniController::class, 'updateLahan'])->name('petani.update_lahan');
 
     // Informasi & Beli Bibit
     Route::get('/informasi-bibit', [PetaniController::class, 'informasiBibit'])->name('petani.informasi_bibit');

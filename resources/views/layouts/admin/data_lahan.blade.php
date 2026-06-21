@@ -69,9 +69,7 @@
                                             {{ $pengajuan->bibit->nama_bibit ?? 'Bibit Dihapus' }}
                                         </span>
                                     </div>
-                                    <span class="text-[9px] uppercase font-bold {{ $pengajuan->status === 'disetujui' ? 'text-green-600' : ($pengajuan->status === 'ditolak' ? 'text-red-500' : 'text-amber-500') }}">
-                                        {{ $pengajuan->status }}
-                                    </span>
+                                    {{-- Status pengajuan dihilangkan sesuai permintaan pengguna --}}
                                 </div>
                             @else
                                 <span class="text-[10px] text-gray-400 italic">Tidak ada pengajuan di {{ $selectedTahun }}</span>

@@ -32,7 +32,7 @@
                         <i class="fas fa-plus mr-2"></i> Tambah Lahan Baru
                     </button>
                 @else
-                    <button onclick="toggleModal()" class="bg-[#2D6A4F] hover:bg-[#1B4332] text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition transform hover:scale-105">
+                    <button onclick="openNewLahanModal()" class="bg-[#2D6A4F] hover:bg-[#1B4332] text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition transform hover:scale-105">
                         <i class="fas fa-plus mr-2"></i> Tambah Lahan Baru
                     </button>
                 @endif
@@ -44,7 +44,7 @@
     {{-- Notifikasi via Layout (Global SweetAlert2) --}}
 
     {{-- Statistik Ringkas --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
             <p class="text-gray-400 text-xs font-bold uppercase">Jumlah Lahan</p>
             <h3 class="text-2xl font-black text-[#2D6A4F]">{{ $lahans->count() }} Lokasi</h3>
@@ -54,8 +54,20 @@
             <h3 class="text-2xl font-black text-[#2D6A4F]">{{ $lahans->sum('luas_lahan') }} m²</h3>
         </div>
         <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <p class="text-gray-400 text-xs font-bold uppercase">Pilih Bibit</p>
+            <select id="estimasi_bibit_select" class="mt-3 block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] outline-none transition text-sm font-bold" @if($bibitsTersedia->isEmpty()) disabled @endif>
+                <option value="">-- Pilih Bibit --</option>
+                @forelse($bibitsTersedia as $b)
+                    <option value="{{ $b->id }}" data-jatah="{{ $estimasiJatahPerBibit[$b->id] ?? 0 }}">{{ $b->nama_bibit }} ({{ $b->jenis }})</option>
+                @empty
+                    <option value="" disabled>Tidak ada bibit tersedia saat ini</option>
+                @endforelse
+            </select>
+        </div>
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
             <p class="text-gray-400 text-xs font-bold uppercase">Estimasi Total Jatah</p>
-            <h3 class="text-2xl font-black text-[#2D6A4F]">{{ number_format($estimasiJatah, 1) }} kg</h3>
+            <h3 id="estimasi_jatah_amount" class="text-2xl font-black text-[#2D6A4F]">0 kg</h3>
+            <p id="estimasi_jatah_description" class="text-sm text-gray-500 mt-2">Pilih bibit untuk melihat estimasi jatah.</p>
         </div>
     </div>
 
@@ -113,13 +125,7 @@
                                 <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-black uppercase border border-blue-200">
                                     {{ $pengajuanAktif->bibit->nama_bibit }}
                                 </span>
-                                @if($pengajuanAktif->status === 'menunggu')
-                                    <span class="text-[9px] text-amber-600 font-bold"><i class="fas fa-clock mr-1"></i>Menunggu</span>
-                                @elseif($pengajuanAktif->status === 'disetujui')
-                                    <span class="text-[9px] text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i>Disetujui</span>
-                                @else
-                                    <span class="text-[9px] text-red-600 font-bold"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
-                                @endif
+                                {{-- Status pengajuan dihilangkan sesuai permintaan pengguna --}}
                                 @if($periodeLabel)
                                     <span class="text-[8px] text-gray-400 uppercase tracking-wider">{{ $periodeLabel }}</span>
                                 @endif
@@ -163,7 +169,12 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         <div class="flex justify-center gap-3">
-                            <button class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition">
+                            <button type="button" onclick="openEditModal(this)" 
+                                data-id="{{ $lahan->id }}" 
+                                data-nama="{{ $lahan->nama_blok }}" 
+                                data-luas="{{ $lahan->luas_lahan }}" 
+                                data-bibit="{{ $pengajuanAktif->bibit_id ?? '' }}"
+                                class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <form action="{{ route('petani.hapus_lahan', $lahan->id) }}" method="POST">
@@ -195,6 +206,8 @@
 
         <form id="lahanForm" action="{{ route('petani.store_lahan') }}" method="POST">
             @csrf
+            <input type="hidden" name="_method" id="form_method" value="">
+            <input type="hidden" name="lahan_id" id="input_lahan_id" value="">
             <div class="space-y-4">
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Nama / Blok Lahan</label>
@@ -210,13 +223,17 @@
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Bibit yang Diajukan (Musim Ini)</label>
                     @if(isset($periodeAktif) && $periodeAktif)
-                        <select name="bibit_id" required class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm font-bold">
+                        <select name="bibit_id" id="modal_bibit_select" required class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm font-bold">
                             <option value="">-- Pilih Varietas Bibit --</option>
                             @foreach($bibitsTersedia as $b)
-                                <option value="{{ $b->id }}">{{ $b->nama_bibit }} ({{ $b->jenis }})</option>
+                                <option value="{{ $b->id }}" data-jatah="{{ $estimasiJatahPerBibit[$b->id] ?? 0 }}">{{ $b->nama_bibit }} ({{ $b->jenis }})</option>
                             @endforeach
                         </select>
                         <p class="text-[9px] text-blue-500 italic ml-1 mt-1"><i class="fas fa-info-circle mr-1"></i> Data lahan & pengajuan bibit akan diverifikasi sekaligus oleh Admin.</p>
+                        <div id="estimasi-jatah-box" class="mt-3 bg-green-50 border border-green-100 rounded-xl p-3 text-sm text-green-700 hidden">
+                            <span class="font-bold">Estimasi Jatah untuk Bibit Terpilih:</span>
+                            <span id="estimasi-jatah-value">0 kg</span>
+                        </div>
                     @else
                         <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                             <p class="text-[10px] text-amber-700 font-bold leading-tight text-center">
@@ -228,8 +245,8 @@
                 </div>
             </div>
             @if(isset($periodeAktif) && $periodeAktif)
-                <button type="submit" class="w-full mt-8 bg-[#2D6A4F] text-white p-4 rounded-2xl font-black shadow-lg hover:bg-[#1B4332] transition tracking-widest uppercase">
-                    SIMPAN & AJUKAN BIBIT
+                <button type="submit" id="submit-button-text" class="w-full mt-8 bg-[#2D6A4F] text-white p-4 rounded-2xl font-black shadow-lg hover:bg-[#1B4332] transition tracking-widest uppercase">
+                    SIMPAN DATA
                 </button>
             @else
                 <button type="button" disabled class="w-full mt-8 bg-gray-300 text-white p-4 rounded-2xl font-black shadow-lg cursor-not-allowed tracking-widest uppercase">
@@ -257,9 +274,114 @@
         document.getElementById('luas_lahan_real').value = luas;
     });
 
+    function openNewLahanModal() {
+        resetLahanForm();
+        document.querySelector('#modalLahan h2').innerText = 'TAMBAH LAHAN';
+        document.getElementById('submit-button-text').innerText = 'SIMPAN DATA';
+        toggleModal();
+    }
+
     function toggleModal() {
         const modal = document.getElementById('modalLahan');
         modal.classList.toggle('hidden');
+    }
+
+    function resetLahanForm() {
+        const form = document.getElementById('lahanForm');
+        form.action = '{{ route('petani.store_lahan') }}';
+        document.getElementById('form_method').value = '';
+        document.getElementById('input_lahan_id').value = '';
+        document.querySelector('input[name="nama_blok"]').value = '';
+        document.getElementById('luas_lahan').value = '';
+        document.getElementById('luas_lahan_real').value = '';
+        const bibitSelect = document.getElementById('modal_bibit_select');
+        if (bibitSelect) {
+            bibitSelect.selectedIndex = 0;
+            updateEstimasiJatah();
+        }
+    }
+
+    function updateEstimasiJatah() {
+        const bibitSelect = document.getElementById('modal_bibit_select');
+        const box = document.getElementById('estimasi-jatah-box');
+        const valueEl = document.getElementById('estimasi-jatah-value');
+
+        if (!bibitSelect || !box || !valueEl) {
+            return;
+        }
+
+        const selectedOption = bibitSelect.options[bibitSelect.selectedIndex];
+        const jatah = selectedOption?.dataset?.jatah ?? 0;
+
+        if (bibitSelect.value) {
+            box.classList.remove('hidden');
+            valueEl.innerText = `${jatah} kg`;
+        } else {
+            box.classList.add('hidden');
+        }
+    }
+
+    const bibitSelectElement = document.getElementById('modal_bibit_select');
+    if (bibitSelectElement) {
+        bibitSelectElement.addEventListener('change', updateEstimasiJatah);
+    }
+
+    function updateEstimasiJatahCard() {
+        const select = document.getElementById('estimasi_bibit_select');
+        const amount = document.getElementById('estimasi_jatah_amount');
+        const description = document.getElementById('estimasi_jatah_description');
+
+        if (!select || !amount || !description) {
+            return;
+        }
+
+        const selectedOption = select.options[select.selectedIndex];
+        const rawJatah = selectedOption?.dataset?.jatah ?? 0;
+        const jatahValue = Number.isFinite(parseFloat(rawJatah)) ? parseFloat(rawJatah) : 0;
+
+        if (select.value) {
+            amount.innerText = `${jatahValue.toFixed(1)} kg`;
+            description.innerText = 'Estimasi jatah untuk bibit yang dipilih.';
+        } else {
+            amount.innerText = '0 kg';
+            description.innerText = 'Pilih bibit untuk melihat estimasi jatah.';
+        }
+    }
+
+    const estimasiBibitSelect = document.getElementById('estimasi_bibit_select');
+    if (estimasiBibitSelect) {
+        estimasiBibitSelect.addEventListener('change', updateEstimasiJatahCard);
+        updateEstimasiJatahCard();
+    }
+
+    function openEditModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const nama = btn.getAttribute('data-nama');
+        const luas = btn.getAttribute('data-luas');
+        const jenis = btn.getAttribute('data-jenis');
+        const bibit = btn.getAttribute('data-bibit');
+
+        document.getElementById('input_lahan_id').value = id;
+        document.querySelector('input[name="nama_blok"]').value = nama;
+        document.getElementById('luas_lahan').value = luas;
+        document.getElementById('luas_lahan_real').value = luas;
+        if (bibit) {
+            const sel = document.getElementById('modal_bibit_select');
+            if (sel) {
+                sel.value = bibit;
+                updateEstimasiJatah();
+            }
+        }
+
+        document.getElementById('form_method').value = 'PUT';
+        document.getElementById('lahanForm').action = '/petani/lahan/update/' + id;
+
+        document.querySelector('#modalLahan h2').innerText = 'EDIT LAHAN';
+        document.getElementById('submit-button-text').innerText = 'SIMPAN PERUBAHAN';
+
+        const modal = document.getElementById('modalLahan');
+        if (modal.classList.contains('hidden')) modal.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
 

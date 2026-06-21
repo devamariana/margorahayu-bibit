@@ -1,6 +1,6 @@
 @extends('layouts.petani_layout')
 
-@section('title', 'Form Pembelian Bibit')
+@section('title', 'Katalog & Pembelian Bibit')
 
 @section('content')
 <div class="space-y-8">
@@ -54,8 +54,8 @@
         </div>
     </div>
 
-    {{-- STEP 2: PILIH BIBIT (Dihilangkan jika sudah pilih dari Katalog) --}}
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-orange-100 {{ request('bibit_id') ? 'hidden' : '' }}">
+    {{-- STEP 2: PILIH BIBIT --}}
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-orange-100">
         <div class="flex items-center gap-4 mb-6">
             <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
                 <i class="fas fa-seedling text-xl"></i>
@@ -96,10 +96,18 @@
                     }
                 @endphp
                 
-                <div onclick="pilihBibit('{{ $b->id }}', '{{ $b->nama_bibit }}', {{ $b->harga_subsidi }}, {{ $b->stok }}, {{ $b->sisa_jatah_global ?? 0 }}, '{{ $b->kategori_musim }}', '{{ $currentMusimAktif }}', {{ $isTutup ? 'true' : 'false' }})" 
+                <div 
                      class="{{ $cardClasses }}" 
                      data-id="{{ $b->id }}"
-                     data-musim="{{ $b->kategori_musim }}">
+                     data-nama="{{ $b->nama_bibit }}"
+                     data-harga="{{ $b->harga_subsidi }}"
+                     data-stok="{{ $b->stok }}"
+                     data-jatah="{{ $b->sisa_jatah_global ?? 0 }}"
+                     data-musim="{{ $b->kategori_musim }}"
+                     data-musim-aktif="{{ $currentMusimAktif }}"
+                     data-tutup="{{ $isTutup ? 1 : 0 }}"
+                     role="button"
+                     tabindex="0">
                     <div class="flex items-center gap-4">
                         <div class="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
                             @if($b->gambar)
@@ -267,6 +275,7 @@
     }
 
     function resetPilihanBibit() {
+        console.log('resetPilihanBibit dipanggil');
         document.querySelectorAll('.bibit-card').forEach(card => {
             card.classList.remove('border-green-600', 'bg-green-50', 'ring-2', 'ring-green-100');
             card.classList.add('border-gray-100', 'bg-white');
@@ -284,11 +293,20 @@
     }
 
     async function pilihBibit(id, nama, harga, currentStok = 0, sisaJatahGlobal = 0, musimBibit, musimAktif, isTutup = false) {
+        console.log('%cPILIH BIBIT FUNCTION START', 'color: blue; font-weight: bold;', {
+            id, nama, harga, currentStok, sisaJatahGlobal, musimBibit, musimAktif, isTutup
+        });
         
         const selectLahan = document.getElementById('pilih-lahan');
         const selectedOption = selectLahan.options[selectLahan.selectedIndex];
         
+        console.log('Selected lahan:', {
+            value: selectedOption?.value,
+            text: selectedOption?.text
+        });
+
         if (!selectedOption.value) {
+            console.warn('⚠ Lahan belum dipilih');
             Swal.fire({
                 icon: 'warning',
                 title: 'Lahan Belum Dipilih',
@@ -298,10 +316,16 @@
             return;
         }
 
-        isDistributionClosed = isTutup;
+        // Pastikan tipe boolean beneran (Blade mengirim 1/0 untuk isTutup)
+        isDistributionClosed = (isTutup === true || isTutup === 1 || isTutup === '1');
         isSelectedWrongSeason = (musimBibit !== musimAktif);
 
+        console.log('Status check:', {
+            isDistributionClosed, isSelectedWrongSeason
+        });
+
         if (isDistributionClosed || isSelectedWrongSeason) {
+            console.warn('⚠ Bibit status warning:', isDistributionClosed ? 'Tutup' : 'Salah Musim');
             Swal.fire({
                 icon: 'info',
                 title: 'Status Bibit',
@@ -313,6 +337,7 @@
         }
 
         // Loading
+        console.log('Showing loading alert...');
         Swal.fire({
             title: 'Verifikasi Jatah...',
             text: 'Kami sedang menghitung hak Anda berdasarkan data pengajuan.',
@@ -321,26 +346,79 @@
         });
 
         try {
+            const fetchBody = {
+                bibit_id: id,
+                lahan_id: selectedOption.value
+            };
+            console.log('%cFETCH REQUEST START', 'color: orange; font-weight: bold;', {
+                url: '{{ route("petani.cek_jatah") }}',
+                method: 'POST',
+                body: fetchBody
+            });
+
             const response = await fetch('{{ route("petani.cek_jatah") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({
-                    bibit_id: id,
-                    lahan_id: selectedOption.value
-                })
+                body: JSON.stringify(fetchBody)
             });
             
-            const result = await response.json();
-            Swal.close();
+            // Log HTTP status
+            console.log(`%cRESPONSE RECEIVED: ${response.status} ${response.statusText}`, 
+                'color: ' + (response.ok ? 'green' : 'red') + '; font-weight: bold;');
+            
+            // Check if response is valid JSON
+            const contentType = response.headers.get('content-type');
+            console.log('Response Content-Type:', contentType);
+            
+            if (!contentType || !contentType.includes('application/json')) {
+                console.error('❌ Response content-type bukan JSON:', contentType);
+                const textResponse = await response.text();
+                console.error('Raw response body (first 500 chars):', textResponse.substring(0, 500));
+                throw new Error('Server response is not JSON. Content-Type: ' + (contentType || 'undefined'));
+            }
 
-            if (result.status === 'info' || result.status === 'error') {
+            let result;
+            try {
+                result = await response.json();
+                console.log('%cRESPONSE JSON PARSED BERHASIL', 'color: green; font-weight: bold;', result);
+            } catch (jsonError) {
+                console.error('❌ JSON parse error:', jsonError);
+                throw new Error('Failed to parse server response as JSON: ' + jsonError.message);
+            }
+
+            Swal.close();
+            console.log('SweetAlert loading ditutup');
+
+            // Debug cepat jika response tidak sesuai
+            if (!result || typeof result !== 'object') {
+                console.error('❌ Result is null or not object:', result);
                 Swal.fire({
-                    icon: result.status,
+                    icon: 'error',
+                    title: 'Response Format Error',
+                    text: 'Server mengirim data yang tidak valid saat menghitung jatah. Cek Console untuk detail.'
+                });
+                resetPilihanBibit();
+                return;
+            }
+
+            // Normalize status field - ensure it exists
+            const status = result.status || (result.sisa !== undefined && result.sisa > 0 ? 'success' : 'error');
+            console.log('%cSTATUS NORMALIZED', 'color: purple; font-weight: bold;', {
+                original: result.status,
+                normalized: status,
+                sisa: result.sisa
+            });
+
+            if (status === 'info' || status === 'error') {
+                console.warn('⚠ Response status:', status, 'Message:', result.message);
+                const iconType = status === 'info' ? 'info' : 'warning';
+                Swal.fire({
+                    icon: iconType,
                     title: 'Informasi Jatah',
-                    text: result.message,
+                    text: result.message || 'Terjadi kesalahan saat menghitung jatah Anda.',
                     confirmButtonColor: '#2D6A4F'
                 });
                 resetPilihanBibit();
@@ -351,27 +429,64 @@
             currentHarga = harga;
             currentQuota = jatah;
 
+            console.log('%cDOTA UPDATE DIMULAI', 'color: darkblue; font-weight: bold;', {
+                jatah, currentHarga, currentQuota
+            });
+
             document.getElementById('input-lahan-id').value = selectedOption.value;
             document.getElementById('input-bibit-id').value = id;
             document.getElementById('input-jumlah-beli').value = jatah;
+
+            // Pastikan input total harga tidak ikut tersisa dari state sebelumnya
+            document.getElementById('input-total-harga').value = 0;
+            document.getElementById('total-harga').innerText = 'Rp 0';
             
-            document.getElementById('placeholder-text').classList.add('hidden');
-            document.getElementById('detail-pesanan').classList.remove('hidden');
+            console.log('✓ Hidden inputs filled');
+
+            // HIDE PLACEHOLDER
+            const placeholderEl = document.getElementById('placeholder-text');
+            const detailEl = document.getElementById('detail-pesanan');
+            console.log('Before visibility change:', {
+                placeholderHidden: placeholderEl.classList.contains('hidden'),
+                detailHidden: detailEl.classList.contains('hidden')
+            });
+
+            placeholderEl.classList.add('hidden');
+            detailEl.classList.remove('hidden');
+
+            console.log('After visibility change:', {
+                placeholderHidden: placeholderEl.classList.contains('hidden'),
+                detailHidden: detailEl.classList.contains('hidden')
+            });
+
             document.getElementById('label-bibit').innerText = 'Bibit ' + nama;
             document.getElementById('berat-estimasi').innerText = jatah + ' Kg';
             document.getElementById('harga-item').innerText = 'Rp ' + harga.toLocaleString('id-ID') + ' /kg';
             
+            console.log('✓ Detail pesanan text diisi');
+            
             if (jatah <= 0) {
-                 Swal.fire({
-                    icon: 'info',
-                    title: 'Jatah Tidak Tersedia',
-                    text: 'Anda tidak memiliki sisa jatah untuk varietas ini pada lahan yang dipilih.',
-                    confirmButtonColor: '#2D6A4F'
-                });
+                console.warn('⚠ Jatah <= 0, isSelectedWrongSeason:', isSelectedWrongSeason);
+                if (isSelectedWrongSeason) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Bukan Musim Tanam',
+                        text: 'Bibit ini hanya tersedia pada musim ' + musimBibit.toUpperCase() + '. Saat ini sedang musim ' + musimAktif.toUpperCase() + ', sehingga bibit ini belum dapat dibeli.',
+                        confirmButtonColor: '#2D6A4F'
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Jatah Tidak Tersedia',
+                        text: 'Anda tidak memiliki sisa jatah untuk varietas ini pada lahan yang dipilih.',
+                        confirmButtonColor: '#2D6A4F'
+                    });
+                }
                 resetPilihanBibit();
                 return;
             }
 
+            // Highlight card
             document.querySelectorAll('.bibit-card').forEach(card => {
                 card.classList.remove('border-green-600', 'bg-green-50', 'ring-2', 'ring-green-100');
                 card.classList.add('border-gray-100', 'bg-white');
@@ -380,14 +495,34 @@
             if (activeCard) {
                 activeCard.classList.remove('border-gray-100', 'bg-white');
                 activeCard.classList.add('border-green-600', 'bg-green-50', 'ring-2', 'ring-green-100');
+                console.log('✓ Card highlighted');
+            } else {
+                console.warn('⚠ Active card tidak ditemukan untuk id:', id);
             }
 
             hitungTotalManual();
+            console.log('%cPILIH BIBIT FUNCTION SUCCESS', 'color: green; font-weight: bold;');
 
         } catch (error) {
             Swal.close();
-            console.error('Check Quota Error:', error);
-            Swal.fire('Error', 'Gagal memverifikasi jatah ke server. Periksa koneksi Anda.', 'error');
+            console.error('%c❌ ERROR IN PILIH BIBIT', 'color: red; font-weight: bold;');
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Full error:', error);
+            
+            let errorMsg = error.message;
+            if (error.message.includes('Failed to parse')) {
+                errorMsg = 'Response dari server tidak valid. Kemungkinan server error (500). Lihat Network tab di DevTools.';
+            } else if (error.message.includes('JSON parse')) {
+                errorMsg = 'Server response bukan JSON. Kemungkinan ada error di server.';
+            }
+            
+            Swal.fire({
+                icon: 'error', 
+                title: 'Koneksi/Server Error',
+                html: '<p>' + errorMsg + '</p><p style="font-size:11px; color:#999; margin-top:8px;">Buka DevTools (F12 → Console) untuk detail lengkap.</p>',
+                confirmButtonColor: '#2D6A4F'
+            });
         }
     }
 
@@ -396,7 +531,7 @@
         let qty = parseFloat(inputVal) || 0;
         const btnBayar = document.getElementById('btn-bayar');
 
-        qty = Math.round(qty * 10) / 10;
+        // Do NOT round qty here; keep exact decimal as returned from server/user input
 
         if (qty > currentQuota) {
             qty = currentQuota;
@@ -410,6 +545,7 @@
         }
 
         const total = qty * currentHarga;
+        // Price needs to be an integer (Rp) so round for currency only
         document.getElementById('input-total-harga').value = Math.round(total);
         document.getElementById('total-harga').innerText = 'Rp ' + Math.round(total).toLocaleString('id-ID');
 
@@ -438,16 +574,51 @@
 
     // Auto-select bibit if passed via URL
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('=== INIT: DOMContentLoaded fired ===');
+        
         // Inisialisasi Filter Musim sesuai default select
         const initialMusim = document.getElementById('filter-musim').value;
         filterBibitByMusim(initialMusim);
 
+        // === EVENT DELEGATION: Bibit Card Click Handler ===
+        const bibitGrid = document.getElementById('bibit-grid');
+        if (bibitGrid) {
+            console.log('✓ bibit-grid ditemukan, attach event listener');
+            bibitGrid.addEventListener('click', function(event) {
+                const card = event.target.closest('.bibit-card');
+                if (!card) {
+                    console.log('→ Click bukan di .bibit-card, abaikan');
+                    return;
+                }
+
+                console.log('%c=== BIBIT CARD CLICKED ===', 'color: green; font-weight: bold;');
+                
+                const id = card.dataset.id;
+                const nama = card.dataset.nama;
+                const harga = parseFloat(card.dataset.harga);
+                const stok = parseFloat(card.dataset.stok);
+                const jatah = parseFloat(card.dataset.jatah);
+                const musimBibit = card.dataset.musim;
+                const musimAktif = card.dataset.musimAktif;
+                const isTutup = parseInt(card.dataset.tutup);
+
+                console.log('Data ekstrak dari dataset:', {
+                    id, nama, harga, stok, jatah, musimBibit, musimAktif, isTutup
+                });
+
+                pilihBibit(id, nama, harga, stok, jatah, musimBibit, musimAktif, isTutup);
+            });
+        } else {
+            console.error('❌ ERROR: bibit-grid tidak ditemukan!');
+        }
+
+        // === URL Parameter Handler ===
         const urlParams = new URLSearchParams(window.location.search);
         const bibitId = urlParams.get('bibit_id');
         if (bibitId) {
+            console.log('Auto-select dari URL param, bibit_id:', bibitId);
             const targetCard = document.querySelector(`.bibit-card[data-id="${bibitId}"]`);
             if (targetCard) {
-                // Auto-pilih jika lahan sudah ada atau hanya satu
                 const selectLahan = document.getElementById('pilih-lahan');
                 if (selectLahan.value) {
                     targetCard.click();
@@ -455,7 +626,6 @@
                     selectLahan.selectedIndex = 1;
                     targetCard.click();
                 } else {
-                    // Jika lahan lebih dari satu dan belum dipilih, beri instruksi
                     Swal.fire({
                         icon: 'info',
                         title: 'Pilih Lahan',

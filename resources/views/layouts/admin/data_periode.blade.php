@@ -87,8 +87,7 @@
                     <tr class="hover:bg-gray-50/80 transition-all duration-200">
                         <td class="p-4 text-gray-500 font-semibold text-sm">{{ $index + 1 }}</td>
                         <td class="p-4 font-black text-gray-800 text-sm tracking-tight">
-                            Periode {{ \Carbon\Carbon::parse($p->tanggal_mulai)->format('Y') }} / {{ $p->musim ?? 'kemarau' }}
-
+                            Periode {{ \Carbon\Carbon::parse($p->tanggal_mulai)->format('d M Y') }} - {{ \Carbon\Carbon::parse($p->tanggal_selesai)->format('d M Y') }}
                         </td>
 
                         
@@ -236,13 +235,14 @@
                 
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Tanggal Mulai</label>
-                    <input type="date" name="tanggal_mulai" required 
+                    <input type="date" name="tanggal_mulai" id="tanggal_mulai" required 
                         class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
                 </div>
                 <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Tanggal Selesai</label>
-                    <input type="date" name="tanggal_selesai" required 
-                        class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
+                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Tanggal Selesai (Otomatis 15 Hari)</label>
+                    <input type="date" name="tanggal_selesai" id="tanggal_selesai" readonly required 
+                        class="block w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl outline-none text-sm text-gray-600 cursor-not-allowed">
+                    <p class="text-[10px] text-gray-500 mt-1">Tanggal selesai dihitung otomatis 15 hari setelah tanggal mulai.</p>
                 </div>
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Status Keaktifan</label>
@@ -314,9 +314,10 @@
                         class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
                 </div>
                 <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Tanggal Selesai</label>
-                    <input type="date" name="tanggal_selesai" id="edit_tanggal_selesai" required 
-                        class="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F] focus:ring-opacity-50 outline-none transition-all duration-200 text-sm">
+                    <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Tanggal Selesai (Otomatis 15 Hari)</label>
+                    <input type="date" name="tanggal_selesai" id="edit_tanggal_selesai" readonly required 
+                        class="block w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl outline-none text-sm text-gray-600 cursor-not-allowed">
+                    <p class="text-[10px] text-gray-500 mt-1">Tanggal selesai dihitung otomatis 15 hari setelah tanggal mulai.</p>
                 </div>
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold text-gray-800 uppercase tracking-widest ml-1">Status Keaktifan</label>
@@ -360,33 +361,54 @@
         });
     }
 
+    function calculateTanggalSelesai(startDate) {
+        if (!startDate) {
+            return '';
+        }
+
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + 14);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     // PERBAIKAN: Menambahkan parameter musim pada fungsi openEditModal agar radio button terisi otomatis
     function openEditModal(id, tahun, tanggal_mulai, tanggal_selesai, status, musim) {
-
         document.getElementById('edit_tahun').value = tahun;
-        
-        document.getElementById('edit_tanggal_mulai').value = tanggal_mulai.split(' ')[0];
-        document.getElementById('edit_tanggal_selesai').value = tanggal_selesai.split(' ')[0];
-        
+
+        const tanggalMulaiValue = tanggal_mulai.split(' ')[0];
+        document.getElementById('edit_tanggal_mulai').value = tanggalMulaiValue;
+        document.getElementById('edit_tanggal_selesai').value = calculateTanggalSelesai(tanggalMulaiValue);
+
         document.getElementById('edit_status').value = status;
-        
-        // Pilih radio button musim yang sesuai
+
         if (musim === 'kemarau') {
             document.getElementById('edit_musim_kemarau').checked = true;
         } else if (musim === 'penghujan') {
             document.getElementById('edit_musim_penghujan').checked = true;
         }
-        
+
         let updateUrl = '{{ route("admin.data_periode.update", ":id") }}';
         updateUrl = updateUrl.replace(':id', id);
         document.getElementById('formEditPeriode').action = updateUrl;
-        
+
         document.getElementById('modalEditPeriode').classList.remove('hidden');
     }
 
-    // Auto-set values saat modal edit dibuka (jika diperlukan)
+    document.getElementById('tanggal_mulai').addEventListener('change', function() {
+        document.getElementById('tanggal_selesai').value = calculateTanggalSelesai(this.value);
+    });
+
+    document.getElementById('edit_tanggal_mulai').addEventListener('change', function() {
+        document.getElementById('edit_tanggal_selesai').value = calculateTanggalSelesai(this.value);
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
-        // no-op
+        if (document.getElementById('tanggal_mulai') && document.getElementById('tanggal_mulai').value) {
+            document.getElementById('tanggal_selesai').value = calculateTanggalSelesai(document.getElementById('tanggal_mulai').value);
+        }
     });
 
     // Pastikan editor modal selalu tampil (misal jika user klik tombol edit berulang)

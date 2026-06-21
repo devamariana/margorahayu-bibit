@@ -62,6 +62,17 @@
         </div>
     </div>
 
+    @if($errors->any())
+        <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl mb-4">
+            <p class="font-bold mb-2">Perbaiki input berikut sebelum lanjut:</p>
+            <ul class="list-disc list-inside text-sm leading-6">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- TABLE SECTION --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
         <div class="overflow-x-auto overflow-y-auto flex-1 text-[11px] relative custom-scrollbar">
@@ -121,7 +132,8 @@
                         </td>
 
                         <td class="p-4">
-                            @if($b->is_buka)
+                            @php $isActuallyOpen = $b->is_buka && $b->stok > 0; @endphp
+                            @if($isActuallyOpen)
                                 <div class="flex flex-col gap-1">
                                     <span class="inline-block bg-green-500 text White text-[8px] font-black px-1.5 py-0.5 rounded uppercase w-fit">DISTRIBUSI DIBUKA</span>
                                     <div class="text-[9px] text-gray-400 flex flex-col">
@@ -130,7 +142,17 @@
                                     </div>
                                 </div>
                             @else
-                                @if($b->tanggal_buka)
+                                @if($b->stok <= 0)
+                                    <div class="flex flex-col gap-1 opacity-80">
+                                        <span class="inline-block bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase w-fit">STOK KOSONG</span>
+                                        @if($b->tanggal_buka)
+                                            <div class="text-[9px] text-gray-400 flex flex-col">
+                                                <span>Buka: {{ \Carbon\Carbon::parse($b->tanggal_buka)->format('d/m/y H:i') }}</span>
+                                                <span>Tutup: {{ \Carbon\Carbon::parse($b->tanggal_buka)->addDays(7)->format('d/m/y H:i') }}</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @elseif($b->tanggal_buka)
                                     <div class="flex flex-col gap-1 opacity-60">
                                         <span class="inline-block bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase w-fit">DISTRIBUSI SELESAI</span>
                                         <div class="text-[9px] text-gray-400 flex flex-col">
@@ -145,7 +167,7 @@
                         </td>
                         <td class="p-4">
                             <div class="flex justify-center gap-2">
-                                @if(!$b->is_buka)
+                                @if(!$b->is_buka && $b->stok > 0)
                                     <form action="{{ route('admin.buka_bibit', $b->id) }}" method="POST">
                                         @csrf
                                         <button type="button" onclick="confirmAction(this, 'Buka distribusi bibit ini sekarang? Kuota akan dihitung proporsional berdasarkan data lahan saat ini.', 'question')" 
@@ -153,7 +175,7 @@
                                             <i class="fas fa-bullhorn text-[10px]"></i>
                                         </button>
                                     </form>
-                                @else
+                                @elseif($b->is_buka && $b->stok > 0)
                                     <form action="{{ route('admin.tutup_bibit', $b->id) }}" method="POST">
                                         @csrf
                                         <button type="button" onclick="confirmAction(this, 'Tutup distribusi bibit ini?', 'warning')" 
@@ -161,6 +183,13 @@
                                             <i class="fas fa-ban text-[10px]"></i>
                                         </button>
                                     </form>
+                                @else
+                                    {{-- Jika stok 0, tampilkan tombol edit (untuk menambah stok) dan nonaktifkan buka distribusi --}}
+                                    <button title="Edit" 
+                                        onclick="openModal('edit', {{ json_encode($b) }})"
+                                        class="w-8 h-8 bg-[#FFC107] hover:bg-yellow-500 text-white rounded shadow-sm flex items-center justify-center transition">
+                                        <i class="fas fa-edit text-[10px]"></i>
+                                    </button>
                                 @endif
 
                                 <a href="{{ route('admin.detail_bibit', $b->id) }}" title="Lihat Detail Distribusi" 
@@ -218,39 +247,39 @@
             
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Komoditas Bibit / Varietas</label>
-                <input type="text" name="nama_bibit" id="f_nama" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Misal: Padi Unggul Inpari 32" required>
+                <input type="text" name="nama_bibit" id="f_nama" value="{{ old('nama_bibit') }}" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Misal: Padi Unggul Inpari 32" required>
             </div>
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Jenis/Varietas</label>
-                <input type="text" name="jenis" id="f_jenis" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
+                <input type="text" name="jenis" id="f_jenis" value="{{ old('jenis') }}" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
             </div>
 
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Kategori Musim</label>
                 <select name="kategori_musim" id="f_kategori_musim" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" required>
-                    <option value="kemarau">Musim Kemarau</option>
-                    <option value="penghujan">Musim Penghujan</option>
+                    <option value="kemarau" {{ old('kategori_musim') === 'kemarau' ? 'selected' : '' }}>Musim Kemarau</option>
+                    <option value="penghujan" {{ old('kategori_musim') === 'penghujan' ? 'selected' : '' }}>Musim Penghujan</option>
                 </select>
             </div>
 
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Sumber Pasokan</label>
-                <input type="text" name="sumber_pasokan" id="f_sumber_pasokan" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Contoh: PT. Bisi Internasional" required>
+                <input type="text" name="sumber_pasokan" id="f_sumber_pasokan" value="{{ old('sumber_pasokan') }}" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Contoh: PT. Bisi Internasional" required>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Volume Subsidi (Kg)</label>
-                    <input type="number" step="0.1" name="stok" id="f_stok" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="0" required>
+                    <input type="number" step="0.1" name="stok" id="f_stok" value="{{ old('stok') }}" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="0" required>
                 </div>
                 <div>
                     <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Nilai Tebus / Kg</label>
-                    <input type="text" id="f_harga" oninput="formatNominal(this)" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Rp 0" required>
-                    <input type="hidden" name="harga_subsidi" id="f_harga_real">
+                    <input type="text" name="harga_subsidi_display" id="f_harga" oninput="formatNominal(this)" value="{{ old('harga_subsidi') ? number_format(old('harga_subsidi'), 0, ',', '.') : '' }}" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Rp 0" required>
+                    <input type="hidden" name="harga_subsidi" id="f_harga_real" value="{{ old('harga_subsidi') }}">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Deskripsi (Opsional)</label>
-                <textarea name="deskripsi" id="f_deskripsi" rows="2" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"></textarea>
+                <textarea name="deskripsi" id="f_deskripsi" rows="2" class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-green-500 outline-none">{{ old('deskripsi') }}</textarea>
             </div>
             <div>
                 <label class="block text-xs font-bold mb-1 uppercase text-gray-500">Bukti Foto Fisik Bibit</label>
@@ -283,7 +312,7 @@
         if (mode === 'edit') {
             title.innerText = 'Koreksi Data Batch Kedatangan';
             form.action = `/admin/data-bibit/update/${data.id}`;
-            methodField.innerHTML = '@method("PUT")';
+            methodField.innerHTML = '<input type="hidden" name="_method" value="PUT">';
             
             document.getElementById('f_nama').value = data.nama_bibit;
             document.getElementById('f_jenis').value = data.jenis;
@@ -292,8 +321,8 @@
             document.getElementById('f_stok').value = data.stok;
 
             let hargaInput = document.getElementById('f_harga');
-            hargaInput.value = data.harga_subsidi;
-            formatNominal(hargaInput);
+            hargaInput.value = data.harga_subsidi ? Number(data.harga_subsidi).toLocaleString('id-ID') : '';
+            document.getElementById('f_harga_real').value = data.harga_subsidi || '';
 
             document.getElementById('f_deskripsi').value = data.deskripsi || '';
         } else {
@@ -380,5 +409,9 @@
 
         document.getElementById('f_harga_real').value = hargaReal;
     });
+
+    @if($errors->any())
+        openModal('tambah');
+    @endif
 </script>
 @endsection
