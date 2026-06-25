@@ -170,31 +170,14 @@ class PetaniController extends Controller
         $periodeAktif = \App\Models\Periode::where('status', 'aktif')->first();
         $currentMusimAktif = $periodeAktif->musim ?? null;
 
-        // Ambil bibit dari pengajuan petani untuk periode aktif, lalu fallback ke semua bibit aktif jika belum ada pengajuan
+        // Ambil semua bibit yang tersedia untuk periode aktif dan musim aktif
         $bibitsTersedia = [];
         if ($periodeAktif) {
-            $bibitIdsPengajuan = \App\Models\Pengajuan::where('petani_id', $petani->id)
-                ->where('periode_id', $periodeAktif->id)
-                ->whereIn('status', ['menunggu', 'disetujui'])
-                ->pluck('bibit_id')
-                ->unique()
-                ->toArray();
-
-            if (!empty($bibitIdsPengajuan)) {
-                $bibitsTersedia = Bibit::whereIn('id', $bibitIdsPengajuan)
-                    ->where('is_buka', true)
-                    ->where('stok', '>', 0)
-                    ->where('kategori_musim', $currentMusimAktif)
-                    ->get();
-            }
-
-            if ($bibitsTersedia->isEmpty()) {
-                $bibitsTersedia = Bibit::where('periode_id', $periodeAktif->id)
-                    ->where('is_buka', true)
-                    ->where('stok', '>', 0)
-                    ->where('kategori_musim', $currentMusimAktif)
-                    ->get();
-            }
+            $bibitsTersedia = Bibit::where('periode_id', $periodeAktif->id)
+                ->where('is_buka', true)
+                ->where('stok', '>', 0)
+                ->where('kategori_musim', $currentMusimAktif)
+                ->get();
         }
 
         // Siapkan year filter agar tetap tersedia meski belum ada lahan
