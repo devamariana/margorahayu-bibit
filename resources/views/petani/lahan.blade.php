@@ -336,11 +336,11 @@
         }
 
         const selectedOption = select.options[select.selectedIndex];
-        const rawJatah = selectedOption?.dataset?.jatah ?? 0;
-        const jatahValue = Number.isFinite(parseFloat(rawJatah)) ? parseFloat(rawJatah) : 0;
+        const rawJatah = selectedOption?.dataset?.jatah ?? '0';
+        const displayJatah = String(rawJatah).trim() || '0';
 
         if (select.value) {
-            amount.innerText = `${jatahValue.toFixed(1)} kg`;
+            amount.innerText = `${displayJatah} kg`;
             description.innerText = 'Estimasi jatah untuk bibit yang dipilih.';
         } else {
             amount.innerText = '0 kg';
